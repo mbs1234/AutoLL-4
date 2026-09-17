@@ -1,4 +1,8 @@
-import { getSensorData, resetSensorData } from './sensor-data-provider';
+import {
+  SensorDataUnavailable,
+  getSensorData,
+  resetSensorData,
+} from './sensor-data-provider';
 
 const SENSOR_DATA_URL = 'https://bg1.joelface.com/sensor/data';
 
@@ -36,7 +40,10 @@ describe('sensor data provider', () => {
     jest.clearAllMocks();
     arrayBuffer.mockResolvedValue(buffer([...Array(20).keys()]));
     decrypt.mockResolvedValue(buffer('sensor-value'));
-    fetchMock.mockResolvedValue({ arrayBuffer } as unknown as Response);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      arrayBuffer,
+    } as unknown as Response);
     resetSensorData();
   });
 
@@ -54,7 +61,11 @@ describe('sensor data provider', () => {
   it('posts for an encrypted payload and decrypts its IV and ciphertext', async () => {
     await expect(getSensorData()).resolves.toBe('sensor-value');
 
-    expect(fetchMock).toHaveBeenCalledWith(SENSOR_DATA_URL, { method: 'POST' });
+    expect(fetchMock).toHaveBeenCalledWith(SENSOR_DATA_URL, {
+      method: 'POST',
+      signal: expect.any(AbortSignal),
+      referrer: '',
+    });
     expect(decrypt).toHaveBeenCalledWith(
       {
         name: 'AES-GCM',
@@ -78,8 +89,49 @@ describe('sensor data provider', () => {
   it('refreshes after an endpoint failure', async () => {
     fetchMock.mockRejectedValueOnce(new Error('offline'));
 
-    await expect(getSensorData()).rejects.toThrow('offline');
+    await expect(getSensorData()).rejects.toThrow(SensorDataUnavailable);
     await expect(getSensorData()).resolves.toBe('sensor-value');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  /*
+   * The three ways this can fail. Each used to arrive as a bare `TypeError` or
+   * an `OperationError` carrying no HTTP status -- so `useDataLoader` fell
+   * through to "Unknown error occurred", `refusal.ts` never counted it, and a
+   * third party being down looked exactly like Disney blocking the build.
+   * Those two want opposite responses on a park morning.
+   */
+  it('names a refused response instead of decrypting the error body', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      arrayBuffer,
+    } as unknown as Response);
+
+    await expect(getSensorData()).rejects.toThrow(SensorDataUnavailable);
+    // The body is never read, so an error document cannot reach `decrypt` and
+    // be reported as an authentication failure.
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(decrypt).not.toHaveBeenCalled();
+  });
+
+  it('names a payload that does not authenticate', async () => {
+    decrypt.mockRejectedValueOnce(new Error('OperationError'));
+    await expect(getSensorData()).rejects.toThrow(SensorDataUnavailable);
+  });
+
+  /*
+   * The bound that makes an unreachable host a failure rather than a spinner.
+   * Only `book` and `modify` pass a control whose abort signal reaches this
+   * far; the other four protected calls have nothing else to stop them.
+   */
+  it('bounds the request and sends no referrer', async () => {
+    await getSensorData();
+    expect(fetchMock).toHaveBeenCalledWith(
+      SENSOR_DATA_URL,
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        referrer: '',
+      })
+    );
   });
 });

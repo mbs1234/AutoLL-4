@@ -120,10 +120,10 @@ export abstract class ApiClient {
         throw new RequestNotSent('Request cancelled before send');
       }
       // Admission belongs to the same boundary as the request itself. Sensor
-      // generation can wait on a first-use module download, so charging the
-      // limiter before it let cancelled work consume capacity and let calls
-      // admitted in different seconds bunch into one burst when the sensor
-      // finally became ready.
+      // generation can wait on a cross-origin round trip -- a module download
+      // once, a payload fetch now -- so charging the limiter before it let
+      // cancelled work consume capacity and let calls admitted in different
+      // seconds bunch into one burst when the sensor finally became ready.
       this.rateLimit.enforce();
       request.control?.onDispatch?.();
       return fetchJson(url, {
