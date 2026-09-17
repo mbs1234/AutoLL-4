@@ -5,6 +5,8 @@ import { authStore } from './auth';
 import { Resort } from './resort';
 import { getSensorData, resetSensorData } from './sensor-data';
 
+const DISNEY_APP_VERSION = '8.23.3';
+
 export class InvalidOrigin extends Error {
   name = 'InvalidOrigin';
 }
@@ -109,7 +111,7 @@ export abstract class ApiClient {
           typeof sd === 'string'
             ? sd
             : await abortable(sd, request.control?.signal),
-        'x-app-id': 'ANDROID',
+        'x-app-id': `${this.resort.id}-IOS-${DISNEY_APP_VERSION}`,
       };
     }
     const url = this.origin + request.path;
@@ -140,7 +142,7 @@ export abstract class ApiClient {
     const res = request.control?.start
       ? await request.control.start(send)
       : await send();
-    if (request.sensorData && res.status === 403) {
+    if (request.sensorData && (res.status === 403 || res.status === 0)) {
       resetSensorData();
     } else if (res.status === 401 && !request.ignoreUnauth) {
       setTimeout(() => authStore.deleteData());

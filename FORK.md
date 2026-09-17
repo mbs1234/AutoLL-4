@@ -33,9 +33,8 @@ Three separate gaps, worth understanding before touching the build:
 ## How this fork resolves them
 
 `.github/workflows/deploy.yml` builds `main`, overlays the static pages from
-`mbs1234/AutoLL-2@goofy` and the runtime module from `mbs1234/AutoLL-2@gh-pages`,
-rewrites upstream URLs, and deploys to Pages. Both are separate public
-repositories, which is why the default `GITHUB_TOKEN` can read them:
+`mbs1234/AutoLL-2@goofy`, rewrites upstream URLs, and deploys to Pages. It is a
+separate public repository, which is why the default `GITHUB_TOKEN` can read it:
 
 ```
 main (source) ──► npm run build ──► dist/
@@ -64,37 +63,15 @@ sending an `x-acf-sensor-data` header alongside an `x-app-id`. Ten months of
 subsequent work — that fix plus monthly data refreshes — exists solely as built
 output on `goofy`; there is no source to merge.
 
-**What this repository does about it.** Nothing directly. The base here is
-[jgeurts/bg1](https://github.com/jgeurts/bg1), which implements that header in
-TypeScript on its `mickey` branch (`a4383d0`, "Add sensor data support"). It is
-inherited wholesale and is **not maintained here**. `src/api/sensor-data.ts`
-and the header construction in `ApiClient.request` belong to that base. A
-booking from this build was confirmed working on 2026-09-05.
-
-**One deployment trap, already sprung once.** `sensor-data.js` is loaded by
-dynamic import at runtime and is *not* a rollup input, so `vite build` does not
-emit it — it has to be copied into `dist/` by the deploy workflow, from
-`gh-pages` rather than `goofy` (both branches carry that filename; they were
-different vintages when this was written, and as of 2026-09-17 they are the same
-blob, `7b3512ae`. The workflow still reads `gh-pages`, because that is the
-branch whose vintage is paired with this base and nothing guarantees they stay
-identical). When it is missing the import rejects with an error carrying no HTTP
-status, so `useDataLoader` shows "Unknown error occurred" and every booking fails
-without naming a cause. The overlay step now fails the build rather than
-warning, so this cannot recur silently.
-
-**And a second trap, found 2026-09-17 and closed the same day.** The branding
-step rewrites `AutoLL-2` to `AutoLL-4` across every `.html`, `.js` and `.css`
-file in `dist/` — and by then `sensor-data.js` is a `.js` file in `dist/`, so it
-had been in that rewrite's input set on every deploy that ever ran. Nothing was
-ever damaged, because none of the four patterns happens to occur in 8 KB of
-obfuscated code. That is luck, not design. A payload whose encoded strings
-contained `autoll2` would have been edited in place, and obfuscated code has no
-redundancy to fail loudly with: the build stays green, `autoll4-files.sha256`
-faithfully records the corrupted file, and it surfaces in a park as every booking
-failing with no HTTP status. It is now excluded by name, and its hash is taken
-when it is copied and checked again after branding — an exclusion is a claim, and
-the hash is the check.
+**What AutoLL-4 tests.** The previous AutoLL-3 implementation dynamically
+loaded an opaque `sensor-data.js` copied from AutoLL-2's published output.
+AutoLL-4 replaces that dependency with a small, reviewable TypeScript provider
+derived from joelface's August 2026 `goofy/bg1.js`: it posts to
+`bg1.joelface.com/sensor/data`, decrypts the binary response with AES-GCM,
+reuses the result for five protected requests, and refreshes after a fetch
+failure or a Disney refusal. `ApiClient` sends the matching
+`WDW-IOS-8.23.3` identity. The provider is bundled with `bg1.js`, so the deploy
+no longer copies or rewrites a separate obfuscated runtime module.
 
 If Disney changes the scheme again, that repair is not part of this project.
 Disney has moved four times in ten months — off in November 2025, worked around
@@ -106,7 +83,7 @@ the fallback.
 banner at the bottom of the screen. `useDataLoader` names the status and the
 endpoint, so a refusal reads as `Network request failed (403 guests)` rather
 than as a bare word. `403` is the filter; `no response` is the eight-second
-client timeout, not a block. A refusal lands on *eligibility*, one step before
+client timeout, not a block. A refusal lands on _eligibility_, one step before
 an offer exists — so autopilot keeps polling, alerting and learning drops while
 never acting, which is the failure mode to watch for.
 
@@ -116,13 +93,13 @@ all work regardless, and are the bulk of what this repository adds.
 
 ## Changes against upstream
 
-| Change | Files | Why |
-| --- | --- | --- |
+| Change                                | Files                                                                                                                               | Why                                                                                                                                                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Disneyland and virtual queues removed | `src/api/ll/dlr.ts`, `src/api/data/dlr.ts`, `src/api/diu.ts`, `src/api/vq.ts`, `src/components/vq/`, `App.tsx`, `ClientsContext.ts` | One resort, one product; see "Scope" below. With the Disneyland client gone nothing imports `diu`, so the stub, the obfuscator plugin and the `build:fork` split went with it. `npm run build` is plain `vite build`. |
-| Pages URL repointed | `App.tsx`, `LoginForm.tsx`, `screens/News.tsx` + both `.test.tsx` | `LoginForm.tsx` is the critical one — it is the OneID `responderPage`. Wrong value breaks login entirely. |
-| Usage ping disabled | `src/ping.ts`, `src/ping.test.ts` | No reason for a personal build to phone home. `PING_ENABLED = false`. |
-| `repository` field | `package.json` | Points at this fork. |
-| Deploy workflow added | `.github/workflows/deploy.yml` | Upstream has no CI; it builds and commits to `goofy` by hand. |
+| Pages URL repointed                   | `App.tsx`, `LoginForm.tsx`, `screens/News.tsx` + both `.test.tsx`                                                                   | `LoginForm.tsx` is the critical one — it is the OneID `responderPage`. Wrong value breaks login entirely.                                                                                                             |
+| Usage ping disabled                   | `src/ping.ts`, `src/ping.test.ts`                                                                                                   | No reason for a personal build to phone home. `PING_ENABLED = false`.                                                                                                                                                 |
+| `repository` field                    | `package.json`                                                                                                                      | Points at this fork.                                                                                                                                                                                                  |
+| Deploy workflow added                 | `.github/workflows/deploy.yml`                                                                                                      | Upstream has no CI; it builds and commits to `goofy` by hand.                                                                                                                                                         |
 
 ## Verified
 
@@ -140,6 +117,9 @@ Deliberately left pointing at upstream infrastructure:
   precisely; replace only if you want zero third-party dependency.
 - `src/api/livedata.ts` → `bg1.joelface.com/livedata/*.json` — show times
   sourced from ThemeParks.wiki, not available via Disney's tipboard.
+- `src/api/sensor-data-provider.ts` → `bg1.joelface.com/sensor/data` — encrypted
+  sensor payloads used by protected Lightning Lane requests. The client is
+  public here; the service implementation and availability remain external.
 - `github.com/joelface/bg1` and `github.com/jgeurts/bg1` source links in
   `contact.html` — GPL-3.0 attribution, kept intentionally. That page and only
   that page: this was recorded as `start.html` / `index.html` until 2026-09-17,
@@ -149,9 +129,8 @@ Deliberately left pointing at upstream infrastructure:
   fails the deploy.
 
 Not copied from `goofy`: `diu.js` and `dlr.js` (upstream's Disneyland
-modules; nothing in this build loads them), `sensor-data.js` (bot-detection
-payload, referenced by no page), `google*.html` (upstream's site-verification
-token).
+modules; nothing in this build loads them), `sensor-data.js` (the old standalone
+mechanism), and `google*.html` (upstream's site-verification token).
 
 ## Testing
 
@@ -168,13 +147,13 @@ morning would have read this page, found that `npm test` legitimately fails and
 that the suite in question was one of the known-broken ones, and dispatched with
 `skip_checks: true` over a real regression.
 
-| Command | Scope | Status |
-| --- | --- | --- |
-| `npm run test:ci` | everything, CI reporter | **green** (107 suites / 1241 tests) |
-| `npm test` | the same tests | **green** |
-| `npm run lint` | | green |
-| `npm run typecheck` | | green |
-| `npm run build` | | green |
+| Command             | Scope                   | Status                              |
+| ------------------- | ----------------------- | ----------------------------------- |
+| `npm run test:ci`   | everything, CI reporter | **green** (107 suites / 1241 tests) |
+| `npm test`          | the same tests          | **green**                           |
+| `npm run lint`      |                         | green                               |
+| `npm run typecheck` |                         | green                               |
+| `npm run build`     |                         | green                               |
 
 There is one suite and one number. If it is red, something is broken.
 
@@ -251,20 +230,20 @@ wired in by `src/providers/AutopilotProvider.tsx` and surfaced on the Today tab
 and `Timeline.tsx` behind it. The README is the user-facing guide; this is the
 map.
 
-| Module | Role |
-| --- | --- |
-| `schedule.ts` | Pure cadence policy (idle / approach / burst) from drop times and every booking window, on the drift-corrected clock; backoff. |
-| `usePoller.ts` | The single sequential polling loop. |
-| `wakelock.ts` | Screen Wake Lock held while autopilot runs, re-acquired when the page becomes visible. Best-effort: unsupported or refused leaves prior behaviour. |
-| `watchlist.ts` | Targets and their flags; matching; edge-triggered alert selection; persistence. |
-| `alert.ts` | Chime, vibration, notification, each degrading independently. |
-| `prewarm.ts` | Guest-eligibility cache, invalidated on `eligibleAfter`, on any booking, and whenever what the party holds changes — a tap-in, an expiry, or a booking or cancellation made by hand. |
-| `priority.ts` | Priority ordering (same comparator as the LL list) and the Tier 1 hold. |
-| `autobook.ts` / `automodify.ts` / `autoswap.ts` | The three actions, each guarded on the offer's *real* time; shared per-action ledger. |
-| `party.ts` | Whole-party guard. |
-| `overlap.ts` | Whether a return time clashes with an existing plan, using Disney's own window from `api/ll/wdw.ts`. |
-| `observe.ts` / `learned.ts` | Drop-time learning: detection, coverage, clustering, and merging learned times into the cadence. |
-| `storage.ts` | Persisted settings, the day-scoped activity log, and the day-scoped action budget. |
+| Module                                          | Role                                                                                                                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `schedule.ts`                                   | Pure cadence policy (idle / approach / burst) from drop times and every booking window, on the drift-corrected clock; backoff.                                                       |
+| `usePoller.ts`                                  | The single sequential polling loop.                                                                                                                                                  |
+| `wakelock.ts`                                   | Screen Wake Lock held while autopilot runs, re-acquired when the page becomes visible. Best-effort: unsupported or refused leaves prior behaviour.                                   |
+| `watchlist.ts`                                  | Targets and their flags; matching; edge-triggered alert selection; persistence.                                                                                                      |
+| `alert.ts`                                      | Chime, vibration, notification, each degrading independently.                                                                                                                        |
+| `prewarm.ts`                                    | Guest-eligibility cache, invalidated on `eligibleAfter`, on any booking, and whenever what the party holds changes — a tap-in, an expiry, or a booking or cancellation made by hand. |
+| `priority.ts`                                   | Priority ordering (same comparator as the LL list) and the Tier 1 hold.                                                                                                              |
+| `autobook.ts` / `automodify.ts` / `autoswap.ts` | The three actions, each guarded on the offer's _real_ time; shared per-action ledger.                                                                                                |
+| `party.ts`                                      | Whole-party guard.                                                                                                                                                                   |
+| `overlap.ts`                                    | Whether a return time clashes with an existing plan, using Disney's own window from `api/ll/wdw.ts`.                                                                                 |
+| `observe.ts` / `learned.ts`                     | Drop-time learning: detection, coverage, clustering, and merging learned times into the cadence.                                                                                     |
+| `storage.ts`                                    | Persisted settings, the day-scoped activity log, and the day-scoped action budget.                                                                                                   |
 
 Design rules that hold throughout, and that a future change should keep:
 
