@@ -5,7 +5,7 @@ import { RateLimit, RateLimitExceeded } from '@/ratelimit';
 import { authStore } from './auth';
 import { ApiClient, RequestControl, RequestNotSent } from './client';
 import type { Resort } from './resort';
-import { getSensorData } from './sensor-data';
+import { getSensorData, resetSensorData } from './sensor-data';
 
 jest.mock('@/fetch');
 jest.mock('./sensor-data');
@@ -54,7 +54,7 @@ describe('controlled mutation requests', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('can abandon the first sensor-module load before any HTTP request starts', async () => {
+  it('can abandon the first sensor fetch before any Disney request starts', async () => {
     const sensor = deferred<string>();
     jest.mocked(getSensorData).mockReturnValue(sensor.promise);
     const enforce = jest.spyOn(RateLimit.prototype, 'enforce');
@@ -101,6 +101,37 @@ describe('controlled mutation requests', () => {
     await request;
     expect(order).toEqual(['revalidate', 'rate-limit', 'dispatch', 'fetch']);
   });
+
+  it('sends the sensor payload with the matching Disney app identity', async () => {
+    jest.mocked(getSensorData).mockReturnValue('sensor');
+    const client = new TestClient({ id: 'WDW' } as Resort);
+
+    await client.mutate();
+
+    expect(fetchJson).toHaveBeenCalledWith(
+      'https://disneyworld.disney.go.com/mutation',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-acf-sensor-data': 'sensor',
+          'x-app-id': 'WDW-IOS-8.23.3',
+        }),
+      })
+    );
+  });
+
+  it.each([0, 403])(
+    'refreshes sensor data after Disney status %i',
+    async status => {
+      jest.mocked(getSensorData).mockReturnValue('sensor');
+      jest
+        .mocked(fetchJson)
+        .mockResolvedValue({ ok: false, status, data: null });
+      const client = new TestClient({ id: 'WDW' } as Resort);
+
+      await expect(client.mutate()).rejects.toBeInstanceOf(Error);
+      expect(resetSensorData).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('does not mark an attempt when final revalidation refuses the send', async () => {
     jest.mocked(getSensorData).mockReturnValue('sensor');

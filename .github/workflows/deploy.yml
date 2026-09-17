@@ -63,18 +63,6 @@ jobs:
           ref: goofy
           path: goofy-static
 
-      # The base's own published output. `sensor-data.js` is loaded at runtime
-      # by a dynamic import rather than bundled, so it has to be shipped
-      # alongside the build, and it has to be *this* copy -- `goofy` carries a
-      # different vintage of the same filename, and pairing that with this
-      # bundle fails in a way that is hard to read.
-      - name: Check out base static output (gh-pages)
-        uses: actions/checkout@v5
-        with:
-          repository: mbs1234/AutoLL-2
-          ref: gh-pages
-          path: base-static
-
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
@@ -150,28 +138,6 @@ jobs:
             fi
           done
 
-      - name: Overlay runtime modules from the base
-        run: |
-          set -euo pipefail
-          # Not a build output and not bundled: `src/api/sensor-data.ts` loads
-          # this by dynamic import at runtime, resolved next to bg1.js. Absent,
-          # the import rejects with an error carrying no HTTP status, so
-          # `useDataLoader` falls through to "Unknown error occurred" and every
-          # booking fails for a reason the message does not name. Taken from
-          # gh-pages rather than goofy on purpose -- see the checkout step.
-          if [ -f "base-static/sensor-data.js" ]; then
-            cp "base-static/sensor-data.js" "dist/sensor-data.js"
-            echo "overlaid sensor-data.js"
-          else
-            echo "::error::base-static/sensor-data.js not found; booking will fail"
-            exit 1
-          fi
-          # Recorded here, checked after branding. This payload is the one file
-          # in dist/ that no step of ours may alter: it is obfuscated, so it has
-          # no redundancy to notice damage with, and Disney is the only party
-          # that validates it. See the branding step for what was reaching it.
-          sha256sum dist/sensor-data.js | cut -d' ' -f1 > /tmp/sensor-data.sha256
-
       - name: Brand installer assets for AutoLL-4
         run: |
           set -euo pipefail
@@ -182,20 +148,7 @@ jobs:
           # start-page preference key must be rewritten as well. Otherwise a
           # person installing AutoLL-4 sees AutoLL-2 and the two builds share
           # that preference on Disney's origin.
-          # `sensor-data.js` is excluded by name, and the exclusion is the
-          # point rather than a tidy-up. It matches `*.js`, it is copied into
-          # dist/ by the step above, and it was therefore in this rewrite's
-          # input set on every deploy that has ever run. Nothing has been
-          # damaged only because none of the four patterns below happens to
-          # occur in 8 KB of obfuscated code -- luck, not design. A future
-          # payload whose encoded strings contain `autoll2` would be edited in
-          # place, and obfuscated code has no redundancy to fail loudly with:
-          # the build stays green, the manifest hashes the corrupted file, and
-          # it surfaces in a park as every booking failing with no HTTP status.
-          # The repository's own rule is that this payload's contents are
-          # off-limits; this pipeline had been quietly exempting itself.
-          find dist -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) \
-              -not -name 'sensor-data.js' -print0 \
+          find dist -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) -print0 \
             | xargs -0 --no-run-if-empty \
                 sed -i \
                   -e "s|https://joelface\.github\.io/bg1|$PAGES_ORIGIN|g" \
@@ -241,21 +194,19 @@ jobs:
           fi
           echo "--- remaining 'joelface' references ---"
           echo "(github.com/joelface/bg1 source links are expected and kept:"
-          echo " GPL-3.0 attribution. bg1.joelface.com is the upstream time-sync"
-          echo " and live-data host, still in use.)"
+          echo " GPL-3.0 attribution. bg1.joelface.com provides time sync,"
+          echo " live data, and sensor data, and is still in use.)"
           grep -rn 'joelface' dist || echo "none"
 
       # A Pages deployment has no release attachment, so leave a small,
       # inspectable record in the published artifact itself. It covers every
-      # payload file, including chunks and the runtime module, and is
+      # payload file, including generated chunks, and is
       # generated only after every overlay and URL rewrite has completed, so
       # it describes what is actually published.
       #
-      # It records all three source revisions, because `dist` is assembled
-      # from three branches: the bundle from this one, the installer pages
-      # from `goofy`, and the runtime module from `gh-pages`. The commit that
-      # triggered the run identifies only the first, so a build reproduced
-      # from `sourceRevision` alone would not match what shipped.
+      # It records both source revisions because `dist` is assembled from the
+      # bundle in this repository and installer pages from `goofy`. The commit
+      # that triggered the run identifies only the first.
       #
       # There is deliberately no `sha256sum --check` here. Re-reading the
       # files in the same step that just hashed them re-derives the same
@@ -270,21 +221,6 @@ jobs:
       #
       # It runs before the manifest below on purpose: the guide is served, so
       # it belongs in `autoll4-files.sha256` like every other served file.
-      - name: Verify the sensor payload was not rewritten
-        run: |
-          set -euo pipefail
-          # An exclusion in a `find` is a claim; this is the check. It costs a
-          # hash and it closes the only path in this pipeline that could ship a
-          # corrupted file with a green build and a manifest that faithfully
-          # records the corruption.
-          expected=$(cat /tmp/sensor-data.sha256)
-          actual=$(sha256sum dist/sensor-data.js | cut -d' ' -f1)
-          if [ "$expected" != "$actual" ]; then
-            echo "::error::sensor-data.js changed after it was copied ($expected -> $actual); something in this workflow is rewriting the payload and every booking would fail with no HTTP status"
-            exit 1
-          fi
-          echo "sensor-data.js unchanged ($actual)"
-
       - name: Overlay the user guide
         run: |
           set -euo pipefail
@@ -302,7 +238,6 @@ jobs:
         run: |
           set -euo pipefail
           goofy_rev=$(git -C goofy-static rev-parse HEAD)
-          base_rev=$(git -C base-static rev-parse HEAD)
           (
             cd dist
             find . -type f \
@@ -333,7 +268,7 @@ jobs:
             # as degradable, which is right for a page a link points at; this
             # is the step that says it may not actually go missing.
             for file in bg1.js bg1.css responder.html responder.js wdw.js \
-                        sensor-data.js index.html index.css contact.html \
+                        index.html index.css contact.html \
                         autoloader.user.js; do
               # Anchored to end of line so a `.map` or a same-named file in a
               # subdirectory cannot satisfy the check for the real one.
@@ -342,8 +277,8 @@ jobs:
                 exit 1
               }
             done
-            printf '{\n  "application": "AutoLL-4",\n  "sourceRevision": "%s",\n  "installerRevision": "%s",\n  "runtimeModuleRevision": "%s",\n  "fileManifest": "autoll4-files.sha256"\n}\n' \
-              "$GITHUB_SHA" "$goofy_rev" "$base_rev" > autoll4-release.json
+            printf '{\n  "application": "AutoLL-4",\n  "sourceRevision": "%s",\n  "installerRevision": "%s",\n  "fileManifest": "autoll4-files.sha256"\n}\n' \
+              "$GITHUB_SHA" "$goofy_rev" > autoll4-release.json
           )
 
       - name: Show what will be deployed

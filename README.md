@@ -91,7 +91,7 @@ same red as the Stop button, and four attractions filled the screen.
 
 **A picture of the day.** The timeline draws your held passes beside the
 windows autopilot may use, on one 4am-to-4am rail, with the protected time
-around each hold shaded behind it. It is the one view that shows *why* a target
+around each hold shaded behind it. It is the one view that shows _why_ a target
 will never fire, and its colours come from the same predicate the booker uses,
 so it cannot disagree with the engine.
 
@@ -154,12 +154,12 @@ leave a ride locked for the rest of the day. It does not defer to autopilot's lo
 that lock is never given back: it records that autopilot moved the ride at some
 point since you switched it on, which may have been hours earlier. That matters
 most in the case only the search can serve, since autopilot sees one return time
-per check and can therefore only move a pass *earlier*, while a search can aim
+per check and can therefore only move a pass _earlier_, while a search can aim
 at a particular time and move one later on purpose — for a dinner reservation.
 
 **Nothing caps the day's bookings.** v1.0 and earlier AutoLL-4 releases rationed
 autopilot to a set number of actions per park day. That cap rested on a
-misreading of Disney's rules: what you spend once is a *redemption*, not a
+misreading of Disney's rules: what you spend once is a _redemption_, not a
 booking, so an attraction can be booked, cancelled and rebooked all day without
 costing you anything you could otherwise hold. What bounds the booker is what
 should: one booking and one move per attraction per session, three Multi Pass
@@ -262,22 +262,22 @@ These and everything else still outstanding are listed in
 [ROADMAP.md](ROADMAP.md) is the shorter argument about what to do next, and in
 what order, before the December freeze.
 
-**It depends on the AutoLL-2 repository to publish.** The installer pages and
-the runtime module both come from that repo at deploy time. AutoLL-2 must stay
-public for AutoLL-4 to build a site.
+**It depends on the AutoLL-2 repository to publish.** The installer pages come
+from that repo at deploy time. AutoLL-2 must stay public for AutoLL-4 to build
+a complete site; the sensor client is now part of this repository's bundle.
 
 ## Verifying a build
 
 Every deploy writes
 [`autoll4-release.json`](https://mbs1234.github.io/AutoLL-4/autoll4-release.json)
-and `autoll4-files.sha256` into the published site: the three source revisions
+and `autoll4-files.sha256` into the published site: the two source revisions
 the site is assembled from, plus a SHA-256 of every file served. Point a
 browser at it before a park day and confirm the build on your phone is the one
 the repository says it is.
 
 `main` is protected: a pull request, a passing `check` run, linear history, no
 force-pushes. The deploy gates independently on typecheck and the full test
-suite — 114 suites, 1428 tests — and if either fails, the publish is skipped and
+suite — 115 suites, 1449 tests — and if either fails, the publish is skipped and
 Pages keeps serving the build already on your phone.
 
 ## Development
