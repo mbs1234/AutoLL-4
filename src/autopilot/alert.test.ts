@@ -183,11 +183,11 @@ describe('fireAlert()', () => {
     fireAlert({
       title: 'Slinky Dog',
       body: '11:05 AM',
-      tag: 'autoll3-test-sdd',
+      tag: 'autoll4-test-sdd',
     });
     expect(ctor).toHaveBeenCalledWith('Slinky Dog', {
       body: '11:05 AM',
-      tag: 'autoll3-test-sdd',
+      tag: 'autoll4-test-sdd',
     });
   });
 

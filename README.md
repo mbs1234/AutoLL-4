@@ -1,46 +1,45 @@
-# AutoLL-3
+# AutoLL-4
 
-AutoLL-3 books Walt Disney World Lightning Lane Multi Passes from the phone in
+AutoLL-4 books Walt Disney World Lightning Lane Multi Passes from the phone in
 your pocket, while you are in the park. You tell it which attractions you want,
 in what order, and between which times; it watches Disney's tip board and takes
 what appears, including in the two-second window when a scheduled drop lands.
 
-It is the current development line of
-[AutoLL](https://github.com/mbs1234/AutoLL), which is frozen at v1.0, by way of
-[AutoLL-2](https://github.com/mbs1234/AutoLL-2). This README says what AutoLL-3
-does for you that v1.0 did not, and what it still does badly. Both builds
-descend from [joelface/bg1](https://github.com/joelface/bg1) and
-[jgeurts/bg1](https://github.com/jgeurts/bg1), which is the work that made
-booking possible at all.
+It is an isolated experimental fork of
+[AutoLL-3](https://github.com/mbs1234/AutoLL-3), created to test changes to the
+sensor-data integration without risking the AutoLL-3 deployment. It preserves
+AutoLL-3's history and continues to descend from
+[joelface/bg1](https://github.com/joelface/bg1) and
+[jgeurts/bg1](https://github.com/jgeurts/bg1).
 
-AutoLL-3 is unofficial, experimental software. It is not affiliated with or
+AutoLL-4 is unofficial, experimental software. It is not affiliated with or
 endorsed by Disney, it can stop working the day Disney changes an endpoint, and
 it comes with no warranty. Keep Disney's own app as the source of truth for what
 you actually hold.
 
 ## Install
 
-Open the [setup page](https://mbs1234.github.io/AutoLL-3/) on the phone you will
+Open the [setup page](https://mbs1234.github.io/AutoLL-4/) on the phone you will
 use in the park and install either the bookmarklet or the userscript.
 
-The [user guide](https://mbs1234.github.io/AutoLL-3/guide.html) walks through
+The [user guide](https://mbs1234.github.io/AutoLL-4/guide.html) walks through
 setup, the park day and what to do when something breaks;
 [docs/USER-GUIDE.md](docs/USER-GUIDE.md) is the same text in this repository.
 
 Three things worth knowing before you do:
 
-- **It installs alongside v1.0 without touching it.** AutoLL-3 keeps its
-  browser storage under `autoll3.*`, tags its notifications `autoll3-*`, names
-  the browser tab "AutoLL-3" and uses a flask favicon where v1.0 uses a bolt.
-  Your v1.0 party, watch list, budget and booking tracking are untouched.
-- **Nothing carries over.** Because the namespaces are separate, AutoLL-3
+- **It installs alongside the other builds without touching them.** AutoLL-4 keeps its
+  browser storage under `autoll4.*`, tags its notifications `autoll4-*`, names
+  the browser tab "AutoLL-4" and uses its own Pages URL. AutoLL-3 and v1.0
+  storage are untouched.
+- **Nothing carries over.** Because the namespaces are separate, AutoLL-4
   starts from an empty store: re-pick your party and rebuild your watch list.
   Do it before the trip, not at the gate.
-- **Install one userscript, not two.** Both builds' autoloaders match
+- **Install only one AutoLL userscript.** The builds' autoloaders match
   `disneyworld.disney.go.com/vas/`, so with both installed they will fight over
   the page. The bookmarklets are fine — those only run when you tap one.
 
-## What AutoLL-3 does that v1.0 did not
+## What AutoLL-4 does that v1.0 did not
 
 ### Before the trip
 
@@ -73,7 +72,7 @@ than in a queue in December.
 
 ### On the park day
 
-**You land on the day, not in a menu.** AutoLL-3 opens on a Today tab that
+**You land on the day, not in a menu.** AutoLL-4 opens on a Today tab that
 answers the questions you actually ask: is it on, what did it just do, what do
 I hold, what is it chasing, when is my next booking time and the next drop. The
 on/off switch is on that screen. In v1.0 all of this lived behind a clock icon
@@ -158,7 +157,7 @@ most in the case only the search can serve, since autopilot sees one return time
 per check and can therefore only move a pass *earlier*, while a search can aim
 at a particular time and move one later on purpose — for a dinner reservation.
 
-**Nothing caps the day's bookings.** v1.0 and earlier AutoLL-3 releases rationed
+**Nothing caps the day's bookings.** v1.0 and earlier AutoLL-4 releases rationed
 autopilot to a set number of actions per park day. That cap rested on a
 misreading of Disney's rules: what you spend once is a *redemption*, not a
 booking, so an attraction can be booked, cancelled and rebooked all day without
@@ -265,13 +264,13 @@ what order, before the December freeze.
 
 **It depends on the AutoLL-2 repository to publish.** The installer pages and
 the runtime module both come from that repo at deploy time. AutoLL-2 must stay
-public for AutoLL-3 to build a site.
+public for AutoLL-4 to build a site.
 
 ## Verifying a build
 
 Every deploy writes
-[`autoll3-release.json`](https://mbs1234.github.io/AutoLL-3/autoll3-release.json)
-and `autoll3-files.sha256` into the published site: the three source revisions
+[`autoll4-release.json`](https://mbs1234.github.io/AutoLL-4/autoll4-release.json)
+and `autoll4-files.sha256` into the published site: the three source revisions
 the site is assembled from, plus a SHA-256 of every file served. Point a
 browser at it before a park day and confirm the build on your phone is the one
 the repository says it is.

@@ -89,7 +89,7 @@ export default function QuarantinePanel({
         {doubts.length === 1 ? '' : 's'} protected
       </h3>
       <p className="mt-1">
-        Disney did not return a definite answer. AutoLL-3 will not automatically
+        Disney did not return a definite answer. AutoLL-4 will not automatically
         move or swap these reservations until Plans can match the exact
         reservation at the requested result or you confirm what happened.
       </p>
@@ -99,14 +99,14 @@ export default function QuarantinePanel({
             <p>{description(doubt, nameOf)}</p>
             {!doubt.reservationIds?.length && (
               <p className="mt-1 font-semibold" role="status">
-                This entry was saved by an older AutoLL-3 version and cannot
+                This entry was saved by an older AutoLL-4 version and cannot
                 clear automatically. Check Disney Plans, then resolve it here.
               </p>
             )}
             {!doubt.durable && (
               <p className="mt-1 font-semibold" role="status">
                 This protection is available only while this page remains open.
-                Keep other AutoLL-3 tabs closed and check Disney Plans now.
+                Keep other AutoLL-4 tabs closed and check Disney Plans now.
               </p>
             )}
             {confirming === identity(doubt) ? (

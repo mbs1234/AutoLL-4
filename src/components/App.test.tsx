@@ -55,7 +55,7 @@ describe('App', () => {
   it('shows News if newer than last seen', async () => {
     kvdb.set(NEWS_VERSION_KEY, -1);
     renderComponent();
-    await see.screen('AutoLL-3 News');
+    await see.screen('AutoLL-4 News');
     click('Close');
     expect(kvdb.get(NEWS_VERSION_KEY)).toBe(NEWS_VERSION);
   });
@@ -95,17 +95,17 @@ describe('App', () => {
     renderComponent();
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith(
-        'https://mbs1234.github.io/AutoLL-3/start.html'
+        'https://mbs1234.github.io/AutoLL-4/start.html'
       );
     });
   });
 
-  it('redirects to start page if AutoLL-3 cannot run from this origin', async () => {
+  it('redirects to start page if AutoLL-4 cannot run from this origin', async () => {
     self.origin = 'https://example.com';
     renderComponent();
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith(
-        'https://mbs1234.github.io/AutoLL-3/start.html'
+        'https://mbs1234.github.io/AutoLL-4/start.html'
       );
     });
   });

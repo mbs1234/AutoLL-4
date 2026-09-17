@@ -1,9 +1,9 @@
-/** Shared origin namespace for every durable or session-scoped AutoLL-3 key. */
-export const STORAGE_NAMESPACE = 'autoll3.' as const;
+/** Shared origin namespace for every durable or session-scoped AutoLL-4 key. */
+export const STORAGE_NAMESPACE = 'autoll4.' as const;
 export type StorageKey = `${typeof STORAGE_NAMESPACE}${string}`;
 
 /** Shared-origin notification tags use a separate browser namespace. */
-export const NOTIFICATION_TAG_NAMESPACE = 'autoll3-' as const;
+export const NOTIFICATION_TAG_NAMESPACE = 'autoll4-' as const;
 export type NotificationTag = `${typeof NOTIFICATION_TAG_NAMESPACE}${string}`;
 
 export function storageKey<const Suffix extends string>(

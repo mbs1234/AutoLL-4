@@ -1,6 +1,6 @@
-# AutoLL-3 User Guide
+# AutoLL-4 User Guide
 
-AutoLL-3 books Walt Disney World Lightning Lane Multi Passes from the phone in
+AutoLL-4 books Walt Disney World Lightning Lane Multi Passes from the phone in
 your pocket while you are in the park. You tell it which attractions you want,
 in what order, and between which times; it watches Disney's tip board and takes
 what appears — including in the two-second window when a scheduled drop lands.
@@ -15,7 +15,7 @@ Two things are true of the whole app and worth reading first:
   selections at a time, one Tier 1 until somebody taps in, one booking per
   attraction per day. What it has over you is that it is faster and more
   attentive than you are at 7:00:02.
-- **Keep Disney's own app as the source of truth.** AutoLL-3 is unofficial,
+- **Keep Disney's own app as the source of truth.** AutoLL-4 is unofficial,
   experimental, and can stop working the day Disney changes an endpoint. When
   the two disagree about what you hold, Disney is right.
 
@@ -35,7 +35,7 @@ December morning get made in November.
 
 ## 1. Install it
 
-Open the [setup page](https://mbs1234.github.io/AutoLL-3/) **on the phone you
+Open the [setup page](https://mbs1234.github.io/AutoLL-4/) **on the phone you
 will actually carry in the park** — not on a laptop. The whole app is built for
 a phone-width screen.
 
@@ -47,27 +47,26 @@ There are two ways in:
 | When it runs | Only when you tap it | Automatically on Disney's Lightning Lane pages |
 | Needs | Nothing | A userscript manager (Userscripts on iOS, Tampermonkey on Android) |
 
-Pick the userscript if you want AutoLL-3 to appear by itself; pick the
+Pick the userscript if you want AutoLL-4 to appear by itself; pick the
 bookmarklet if you would rather decide each time.
 
-**Install one userscript, not two.** AutoLL-3's autoloader and AutoLL v1.0's
-both match `disneyworld.disney.go.com/vas/`, so with both installed they fight
-over the page. Two *bookmarklets* are fine — each only runs when tapped.
+**Install only one AutoLL userscript.** AutoLL-4, AutoLL-3 and AutoLL v1.0 all
+match `disneyworld.disney.go.com/vas/`, so multiple enabled autoloaders fight
+over the page. Multiple *bookmarklets* are fine — each only runs when tapped.
 
-**Nothing carries over from v1.0.** AutoLL-3 keeps its storage under `autoll3.*`
-and never reads v1.0's keys. It starts completely empty: no party, no watch
-list, not even the accepted warning. Your v1.0 data is untouched and stays
-exactly where it is — but you rebuild here from scratch. Do it now, not at the
-gate.
+**Nothing carries over from AutoLL-3 or v1.0.** AutoLL-4 keeps its storage under
+`autoll4.*` and never reads the other builds' keys. It starts completely empty:
+no party, no watch list, not even the accepted warning. Their data is untouched,
+but you rebuild here from scratch. Do it now, not at the gate.
 
-**Telling the two apart.** AutoLL-3 names its browser tab `AutoLL-3` and uses a
-flask favicon (🧪) where v1.0 uses a bolt. The build name is also the last line
-of the Settings menu.
+**Telling the builds apart.** AutoLL-4 names its browser tab `AutoLL-4`; the
+build name is also the last line of the Settings menu. It uses a DNA favicon
+(🧬), while AutoLL-3 uses a flask and v1.0 uses a bolt.
 
 ## 2. First run
 
 Run the bookmarklet on a page whose address begins `disneyworld.disney.go.com`.
-On any other Disney page the tab is silently sent to AutoLL-3's start page
+On any other Disney page the tab is silently sent to AutoLL-4's start page
 instead — if your tab suddenly becomes a GitHub Pages page, that is what
 happened.
 
@@ -75,7 +74,7 @@ happened.
 experimental, unofficial and unwarranted. Tap **Accept** at the bottom. It never
 appears again in that browser.
 
-**Signing in.** AutoLL-3 never asks for your Disney password. It loads Disney's
+**Signing in.** AutoLL-4 never asks for your Disney password. It loads Disney's
 own OneID sheet, which opens by itself, and Disney hands back a session token
 that is held in your browser only. If the sheet does not load, the card gives up
 after fifteen seconds and offers a retry button — that is the fix for the blank
@@ -340,7 +339,7 @@ requests. The panel disappears the moment the booking date is today.
 
 ## 10. Starting up
 
-Launch AutoLL-3 the way you installed it. You land on the tab you were last on —
+Launch AutoLL-4 the way you installed it. You land on the tab you were last on —
 usually **Today**.
 
 **Autopilot always starts off.** The on/off state is deliberately not
@@ -698,7 +697,7 @@ screen.** Everything else in this section is a variation on that one test.
 
 | Banner | Meaning | What to do |
 |---|---|---|
-| `Network request failed (403 guests)` | Disney's filter is refusing this app | Stop trying; book in Disney's app. Leave AutoLL-3 running as a watcher |
+| `Network request failed (403 guests)` | Disney's filter is refusing this app | Stop trying; book in Disney's app. Leave AutoLL-4 running as a watcher |
 | `Network request failed (no response guests)` | Your signal dropped — an 8-second timeout | Move, or switch wifi off. **If you were mid-booking, check Disney's Plans first** |
 | `Too many requests just now.` | You tapped faster than 5 requests/second | Wait five seconds |
 | `Unknown error occurred` | No status at all — usually the rate limit, on screens that do not name it | Wait five seconds and retry once |

@@ -39,7 +39,7 @@ describe('LoginForm', () => {
     await waitFor(() => expect(launchLogin).toHaveBeenCalled());
     expect(self.OneID.get).toHaveBeenCalledWith({
       clientId: 'TPR-WDW-LBSDK.IOS',
-      responderPage: 'https://mbs1234.github.io/AutoLL-3/responder.html',
+      responderPage: 'https://mbs1234.github.io/AutoLL-4/responder.html',
     });
 
     const exp = new Date('2050-01-01T00:00:00Z').getTime();

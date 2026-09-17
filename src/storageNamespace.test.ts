@@ -16,10 +16,10 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('the shared-origin storage namespace', () => {
-  it('builds every key under AutoLL-3', () => {
-    expect(storageKey('example')).toBe('autoll3.example');
-    expect(STORAGE_NAMESPACE).toBe('autoll3.');
-    expect(NOTIFICATION_TAG_NAMESPACE).toBe('autoll3-');
+  it('builds every key under AutoLL-4', () => {
+    expect(storageKey('example')).toBe('autoll4.example');
+    expect(STORAGE_NAMESPACE).toBe('autoll4.');
+    expect(NOTIFICATION_TAG_NAMESPACE).toBe('autoll4-');
   });
 
   it('has no handwritten namespaced key bypassing the helper', () => {
@@ -29,7 +29,7 @@ describe('the shared-origin storage namespace', () => {
       .filter(path => !path.includes('.test.'))
       .flatMap(path => {
         const source = readFileSync(path, 'utf8');
-        return /['"`]autoll3\./.test(source)
+        return /['"`]autoll4\./.test(source)
           ? [path.slice(root.length + 1)]
           : [];
       });

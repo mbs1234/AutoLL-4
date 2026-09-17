@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="How to set up, read and troubleshoot AutoLL-3, the Walt Disney World Lightning Lane Multi Pass booker.">
-<title>AutoLL-3 Field Guide</title>
+<meta name="description" content="How to set up, read and troubleshoot AutoLL-4, the Walt Disney World Lightning Lane Multi Pass booker.">
+<title>AutoLL-4 Field Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -542,9 +542,9 @@
 <header class="masthead">
   <div class="masthead-inner">
     <p class="eyebrow">Walt Disney World · Lightning Lane Multi Pass</p>
-    <h1>The <span class="nb">AutoLL-3</span> Field Guide</h1>
+    <h1>The <span class="nb">AutoLL-4</span> Field Guide</h1>
     <p class="standfirst">
-      AutoLL-3 books Lightning Lane Multi Passes from the phone in your pocket
+      AutoLL-4 books Lightning Lane Multi Passes from the phone in your pocket
       while you are in the park. You tell it which attractions you want, in what
       order, and between which times; it watches Disney's tip board and takes
       what appears — including in the two-second window when a scheduled drop
@@ -643,7 +643,7 @@
         faster and more attentive than you are at 7:00:02.
       </p>
       <p>
-        <strong>Keep Disney's own app as the source of truth.</strong> AutoLL-3
+        <strong>Keep Disney's own app as the source of truth.</strong> AutoLL-4
         is unofficial and experimental, and can stop working the day Disney
         changes an endpoint. When the two disagree about what you hold, Disney
         is right.
@@ -677,7 +677,7 @@
       <h3><span class="num">01</span> Install it</h3>
       <p>
         Open the
-        <a href="https://mbs1234.github.io/AutoLL-3/">setup page</a>
+        <a href="https://mbs1234.github.io/AutoLL-4/">setup page</a>
         <strong>on the phone you will actually carry in the park</strong> — not
         on a laptop. The whole app is built for a phone-width screen.
       </p>
@@ -694,30 +694,30 @@
         </table>
       </div>
       <p>
-        Pick the userscript if you want AutoLL-3 to appear by itself; pick the
+        Pick the userscript if you want AutoLL-4 to appear by itself; pick the
         bookmarklet if you would rather decide each time.
       </p>
       <div class="call stop">
-        <span class="call-label">Install one userscript, not two</span>
+        <span class="call-label">Install only one AutoLL userscript</span>
         <p>
-          AutoLL-3's autoloader and AutoLL v1.0's both match
-          <code>disneyworld.disney.go.com/vas/</code>, so with both installed
-          they fight over the page. Two <em>bookmarklets</em> are fine — each
-          only runs when tapped.
+          AutoLL-4, AutoLL-3 and AutoLL v1.0 all match
+          <code>disneyworld.disney.go.com/vas/</code>, so multiple enabled
+          autoloaders fight over the page. Multiple <em>bookmarklets</em> are
+          fine — each only runs when tapped.
         </p>
       </div>
-      <h4>Nothing carries over from v1.0</h4>
+      <h4>Nothing carries over from AutoLL-3 or v1.0</h4>
       <p>
-        AutoLL-3 keeps its storage under <code>autoll3.*</code> and never reads
-        v1.0's keys. It starts completely empty: no party, no watch list, not
-        even the accepted warning. Your v1.0 data is untouched and stays exactly
-        where it is — but you rebuild here from scratch. Do it now, not at the
-        gate.
+        AutoLL-4 keeps its storage under <code>autoll4.*</code> and never reads
+        the other builds' keys. It starts completely empty: no party, no watch
+        list, not even the accepted warning. Their data is untouched, but you
+        rebuild here from scratch. Do it now, not at the gate.
       </p>
       <p>
-        To tell the two apart later: AutoLL-3 names its browser tab
-        <span class="ui">AutoLL-3</span> and uses a flask favicon 🧪 where v1.0
-        uses a bolt. The build name is also the last line of the Settings menu.
+        To tell the builds apart later: AutoLL-4 names its browser tab
+        <span class="ui">AutoLL-4</span>; the build name is also the last line
+        of the Settings menu. It uses a DNA favicon 🧬, while AutoLL-3 uses a
+        flask and v1.0 uses a bolt.
       </p>
     </section>
 
@@ -726,7 +726,7 @@
       <p>
         Run the bookmarklet on a page whose address begins
         <code>disneyworld.disney.go.com</code>. On any other Disney page the tab
-        is silently sent to AutoLL-3's start page instead — if your tab suddenly
+        is silently sent to AutoLL-4's start page instead — if your tab suddenly
         becomes a GitHub Pages page, that is what happened.
       </p>
       <p>
@@ -736,7 +736,7 @@
         appears again in that browser.
       </p>
       <p>
-        <strong>Signing in.</strong> AutoLL-3 never asks for your Disney
+        <strong>Signing in.</strong> AutoLL-4 never asks for your Disney
         password. It loads Disney's own OneID sheet, which opens by itself, and
         Disney hands back a session token held in your browser only. If the
         sheet does not load, the card gives up after fifteen seconds and offers
@@ -1728,7 +1728,7 @@
             <tr>
               <td><code>(403 guests)</code></td>
               <td>Disney's filter is refusing this app</td>
-              <td>Stop trying; book in Disney's app. Leave AutoLL-3 running as a watcher</td>
+              <td>Stop trying; book in Disney's app. Leave AutoLL-4 running as a watcher</td>
             </tr>
             <tr>
               <td><code>(no response guests)</code></td>
@@ -1973,14 +1973,14 @@
 
     <footer>
       <p>
-        AutoLL-3 is unofficial, experimental software. It is not affiliated with
+        AutoLL-4 is unofficial, experimental software. It is not affiliated with
         or endorsed by Disney, it can stop working the day Disney changes an
         endpoint, and it comes with no warranty. Keep Disney's own app as the
         source of truth for what you actually hold.
       </p>
       <p>
         Source and issues:
-        <a href="https://github.com/mbs1234/AutoLL-3">github.com/mbs1234/AutoLL-3</a>
+        <a href="https://github.com/mbs1234/AutoLL-4">github.com/mbs1234/AutoLL-4</a>
         · GPL-3.0-only, as a modified version of BG1 by Joel Bruick, with the
         booking work from jgeurts/bg1.
       </p>

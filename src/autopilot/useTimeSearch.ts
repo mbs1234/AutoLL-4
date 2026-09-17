@@ -373,7 +373,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
           setState(s => ({
             ...s,
             lastError:
-              'AutoLL-3 could not coordinate this reservation. Reload before trying again.',
+              'AutoLL-4 could not coordinate this reservation. Reload before trying again.',
             phase: guard.phase,
           }));
           stop('failed');
@@ -486,7 +486,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
               setState(s => ({
                 ...s,
                 lastError:
-                  'AutoLL-3 could not release the reservation lock. Reload before trying again.',
+                  'AutoLL-4 could not release the reservation lock. Reload before trying again.',
               }));
             }
           }
@@ -519,7 +519,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
                 ...s,
                 contended: true,
                 lastError:
-                  'AutoLL-3 lost the reservation lock. Refresh Plans before trying again.',
+                  'AutoLL-4 lost the reservation lock. Refresh Plans before trying again.',
               }));
               stop('failed');
             }
@@ -540,7 +540,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
           setState(s => ({
             ...s,
             lastError:
-              'AutoLL-3 could not keep the reservation lock alive. Reload before trying again.',
+              'AutoLL-4 could not keep the reservation lock alive. Reload before trying again.',
             phase: guard.phase,
           }));
           stop('failed');
@@ -616,7 +616,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
               ...(resolutionError
                 ? {
                     lastError:
-                      'The request was rejected, but AutoLL-3 could not clear its saved protection. Resolve it from Activity after checking Plans.',
+                      'The request was rejected, but AutoLL-4 could not clear its saved protection. Resolve it from Activity after checking Plans.',
                   }
                 : {}),
             }));
@@ -741,7 +741,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
         ...(retainError
           ? {
               lastError:
-                'The move succeeded, but AutoLL-3 could not retain all local protection. Refresh Plans before making another change.',
+                'The move succeeded, but AutoLL-4 could not retain all local protection. Refresh Plans before making another change.',
             }
           : {}),
         ...(!runningRef.current || !canContinue
@@ -831,7 +831,7 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
           setState(s => ({
             ...s,
             lastError:
-              'AutoLL-3 could not renew the reservation lock. Refresh Plans before making another change.',
+              'AutoLL-4 could not renew the reservation lock. Refresh Plans before making another change.',
           }));
           stop('failed');
           return;

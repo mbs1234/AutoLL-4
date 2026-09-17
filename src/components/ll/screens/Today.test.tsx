@@ -355,7 +355,7 @@ describe('Today backoff', () => {
 
 describe('Today context strip', () => {
   it('names the park, the day and the party under the title', () => {
-    localStorage.setItem('autoll3.genie.partyIds', JSON.stringify(['a', 'b']));
+    localStorage.setItem('autoll4.genie.partyIds', JSON.stringify(['a', 'b']));
     setup();
     const strip = screen.getByText('Party of 2').parentElement!;
     expect(within(strip).getByText('Magic Kingdom')).toBeInTheDocument();

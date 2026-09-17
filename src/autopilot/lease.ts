@@ -194,7 +194,7 @@ export interface QuarantineResult {
   error?: unknown;
 }
 
-const QUARANTINE_EVENT = 'autoll3:quarantine-change';
+const QUARANTINE_EVENT = 'autoll4:quarantine-change';
 let generatedId = 0;
 
 /** An id that stays with one mutation through abandonment and any late result. */

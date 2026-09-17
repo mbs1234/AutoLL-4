@@ -138,7 +138,7 @@ describe('Activity diagnostics', () => {
       screen.getByText(/1 unresolved Lightning Lane change/)
     ).toBeVisible();
     expect(
-      screen.getByText(/saved by an older AutoLL-3 version/)
+      screen.getByText(/saved by an older AutoLL-4 version/)
     ).toBeVisible();
     fireEvent.click(screen.getByText('I checked Disney — resolve this'));
     expect(screen.getByText(/Clear this only after checking/)).toBeVisible();

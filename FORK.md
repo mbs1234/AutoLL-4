@@ -1,8 +1,11 @@
 # Fork notes
 
-Built on [joelface/bg1](https://github.com/joelface/bg1) and
+Forked from [AutoLL-3](https://github.com/mbs1234/AutoLL-3) at commit
+`f889fbf8719f79ceea66e6dbc6c196f5a7bef758` as an isolated test bed for the
+new joelface sensor-data mechanism. AutoLL-3 in turn is built on
+[joelface/bg1](https://github.com/joelface/bg1) and
 [jgeurts/bg1](https://github.com/jgeurts/bg1), both GPL-3.0-only.
-Deployed to <https://mbs1234.github.io/AutoLL-3/>.
+Deployed to <https://mbs1234.github.io/AutoLL-4/>.
 
 ## Why a plain `mickey` build does not work
 
@@ -39,7 +42,7 @@ main (source) ──► npm run build ──► dist/
 goofy  (static) ──► overlay index/start/news/contact/autoloader/icon/css
                     (never overwriting freshly built bg1.js, bg1.css,
                      responder.html or their chunks)
-                 ──► brand URLs and labels for mbs1234.github.io/AutoLL-3
+                 ──► brand URLs and labels for mbs1234.github.io/AutoLL-4
                  ──► GitHub Pages
 ```
 
@@ -81,13 +84,13 @@ without naming a cause. The overlay step now fails the build rather than
 warning, so this cannot recur silently.
 
 **And a second trap, found 2026-09-17 and closed the same day.** The branding
-step rewrites `AutoLL-2` to `AutoLL-3` across every `.html`, `.js` and `.css`
+step rewrites `AutoLL-2` to `AutoLL-4` across every `.html`, `.js` and `.css`
 file in `dist/` — and by then `sensor-data.js` is a `.js` file in `dist/`, so it
 had been in that rewrite's input set on every deploy that ever ran. Nothing was
 ever damaged, because none of the four patterns happens to occur in 8 KB of
 obfuscated code. That is luck, not design. A payload whose encoded strings
 contained `autoll2` would have been edited in place, and obfuscated code has no
-redundancy to fail loudly with: the build stays green, `autoll3-files.sha256`
+redundancy to fail loudly with: the build stays green, `autoll4-files.sha256`
 faithfully records the corrupted file, and it surfaces in a park as every booking
 failing with no HTTP status. It is now excluded by name, and its hash is taken
 when it is copied and checked again after branding — an exclusion is a claim, and
@@ -125,7 +128,7 @@ all work regardless, and are the bulk of what this repository adds.
 
 Login works from this fork's own origin (confirmed on device 2026-09-04).
 Disney's OneID does **not** allowlist the `responderPage` redirect URI, so
-`https://mbs1234.github.io/AutoLL-3/responder.html` authenticates normally. This was
+`https://mbs1234.github.io/AutoLL-4/responder.html` authenticates normally. This was
 the main risk in forking at all -- had OneID validated redirect URIs against a
 registered allowlist, no amount of build fixing would have produced a working
 fork.
