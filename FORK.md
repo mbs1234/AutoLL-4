@@ -87,6 +87,14 @@ client timeout, not a block. A refusal lands on _eligibility_, one step before
 an offer exists — so autopilot keeps polling, alerting and learning drops while
 never acting, which is the failure mode to watch for.
 
+Since the payload moved to a live endpoint there is a third reading, and it is
+the one that wants the opposite response. "A helper service could not be
+reached" is `SensorDataUnavailable`: `bg1.joelface.com/sensor/data` is down,
+slow or refusing, and Disney has said nothing at all. Retry, and if it persists
+the build cannot book until that service returns — which is the price of
+tracking upstream's current mechanism rather than a file it stopped updating.
+A `403` means Disney; this means the middleman.
+
 **What does not depend on it.** Watching, alerting, drop learning, the
 return-time windows, the priority ordering and the corrected attraction data
 all work regardless, and are the bulk of what this repository adds.
@@ -149,7 +157,7 @@ that the suite in question was one of the known-broken ones, and dispatched with
 
 | Command             | Scope                   | Status                              |
 | ------------------- | ----------------------- | ----------------------------------- |
-| `npm run test:ci`   | everything, CI reporter | **green** (107 suites / 1241 tests) |
+| `npm run test:ci`   | everything, CI reporter | **green** (115 suites / 1452 tests) |
 | `npm test`          | the same tests          | **green**                           |
 | `npm run lint`      |                         | green                               |
 | `npm run typecheck` |                         | green                               |

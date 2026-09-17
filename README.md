@@ -128,7 +128,7 @@ does not guess from the itinerary, which structurally cannot answer.
 keeps the slot free for a better-ranked Tier 1 with a drop coming now covers
 swaps, not just fresh bookings.
 
-**It stops giving up the Haunted Mansion to keep the Tiki Room.** Twenty-six
+**It stops giving up the Haunted Mansion to keep the Tiki Room.** A good many
 shipped attractions carry no rank on purpose. The old rule protected exactly
 those from being swapped away, so a Big Thunder swap surrendered a headliner
 and kept a five-minute show. Only facilities the data does not recognise at all
@@ -231,8 +231,10 @@ three, and a held Safaris is no longer the first thing offered up in a swap.
 **One ride keeps one rank whichever film is showing.** Soarin' is served under
 three facility ids as the film rotates, and they carried three different
 priorities — so the same queue, with the same wait, ranked a band lower on two
-mornings out of three. They are equal now, and a test enforces it for any ride
-served under several ids.
+mornings out of three. They are equal now, and a test enforces it for a ride
+served under several ids for the *same* experience. A seasonal overlay is
+deliberately exempt: Jingle Cruise waits 53 minutes against Jungle Cruise's 37,
+so it earns a different rank honestly.
 
 These decisions are now pinned by tests over the shipped table — the previous
 set was silently reverted by a data merge and nothing went red, because every

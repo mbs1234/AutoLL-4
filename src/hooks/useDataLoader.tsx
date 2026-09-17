@@ -30,6 +30,14 @@ export default function useDataLoader(): {
       const msgs: Required<typeof messages> = {
         error: 'Unknown error occurred',
         request: 'Network request failed',
+        // A default rather than something each call site opts into, because
+        // every protected Disney call can raise it and none of them would
+        // think to. Named separately from a refusal on purpose: the two want
+        // opposite responses on a park morning, and without this the payload
+        // service being down read as "Unknown error occurred" -- the one
+        // message that tells you nothing at all.
+        SensorDataUnavailable:
+          'A helper service could not be reached. This is not Disney refusing — try again, and use Disney’s own app if it keeps happening.',
         ...messages,
       };
       flash('');
