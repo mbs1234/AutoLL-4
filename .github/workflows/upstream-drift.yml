@@ -1,0 +1,120 @@
+name: Upstream drift
+
+# AutoLL-3 and AutoLL-4 are kept as mutual fallbacks, and fixes flow from
+# AutoLL-3 to AutoLL-4 by merge. Nothing here performs that merge. This job
+# only counts what is waiting and says so, because the thing that actually
+# goes wrong is not the merging -- it is forgetting there was anything to
+# merge until the morning a park day needs the fallback.
+#
+# It deliberately does NOT fail on a fresh commit. Lag between the two builds
+# is the point of having two: a change that breaks AutoLL-3 should have some
+# days to show itself before it is carried into the build that is supposed to
+# still work. What it fails on is a commit that has been sitting unmerged past
+# that soak, which is forgetting rather than waiting.
+#
+# It cannot tell you whether a waiting commit is SAFE to merge. A merge can
+# carry AutoLL-3's local sensor generation into this build with every test
+# green -- both repos' `jest.config.js` maps `.*/sensor-data$` to a mock, so no
+# suite here ever loads the file that decides whether the payload is generated
+# locally or fetched from the endpoint. Read `docs/SYNC.md` before merging, and
+# read the diff of `src/api/` and `.github/workflows/deploy.yml` by eye.
+#
+# GitHub disables a `schedule` trigger after 60 days without repository
+# activity and emails the owner. On a personal fork that gap is normal, so
+# treat this as a convenience and use `workflow_dispatch` when the answer
+# actually matters.
+
+on:
+  schedule:
+    - cron: '23 15 * * 1'
+  workflow_dispatch:
+    inputs:
+      soak_days:
+        description: 'Days a commit may wait before this is called forgetting'
+        required: false
+        default: '7'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-drift
+  cancel-in-progress: true
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Full history: the point is to compare against a sibling repository, and
+      # a shallow clone has no merge base to compare against.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Count what AutoLL-3 has that this build does not
+        env:
+          SOAK_DAYS: ${{ github.event.inputs.soak_days || '7' }}
+        run: |
+          set -euo pipefail
+
+          git remote add autoll3 https://github.com/mbs1234/AutoLL-3.git
+          git fetch --quiet autoll3 main
+
+          waiting=$(git rev-list --count HEAD..autoll3/main)
+          cutoff=$(date -u -d "${SOAK_DAYS} days ago" +%s)
+
+          {
+            echo "## Upstream drift"
+            echo
+            echo "AutoLL-3 has **${waiting}** commit(s) this build does not have."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$waiting" -eq 0 ]; then
+            echo "In step with AutoLL-3." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo '| age | commit | subject |'
+            echo '|---|---|---|'
+            git log --reverse --date=short \
+                --format='| %ad | `%h` | %s |' HEAD..autoll3/main
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # `%ct` is the committer date as a unix timestamp, which is what the
+          # soak is measured against -- author date can be far older than the
+          # day a commit actually landed on AutoLL-3's main.
+          stale=$(git log --format='%ct %h %s' HEAD..autoll3/main \
+                  | awk -v c="$cutoff" '$1 < c { $1=""; print substr($0,2) }')
+
+          if [ -z "$stale" ]; then
+            {
+              echo "Still inside the ${SOAK_DAYS}-day soak. Nothing to do yet --"
+              echo "letting a change prove itself in AutoLL-3 first is deliberate."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "### Past the ${SOAK_DAYS}-day soak"
+            echo
+            echo '```'
+            echo "$stale"
+            echo '```'
+            echo
+            echo "Merge these when you next have time to watch the result:"
+            echo
+            echo '```bash'
+            echo 'git fetch autoll3 && git merge autoll3/main'
+            echo '```'
+            echo
+            echo "Read \`docs/SYNC.md\` first. Do not merge on a park day, and"
+            echo "not on a day AutoLL-3 itself deployed -- two builds changed"
+            echo "together are one build."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::AutoLL-3 has commits waiting past the ${SOAK_DAYS}-day soak."
+          exit 1
