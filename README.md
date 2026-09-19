@@ -279,7 +279,7 @@ the repository says it is.
 
 `main` is protected: a pull request, a passing `check` run, linear history, no
 force-pushes. The deploy gates independently on typecheck and the full test
-suite — 115 suites, 1452 tests — and if either fails, the publish is skipped and
+suite — 115 suites, 1455 tests — and if either fails, the publish is skipped and
 Pages keeps serving the build already on your phone.
 
 ## Development
