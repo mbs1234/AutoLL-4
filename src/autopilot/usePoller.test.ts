@@ -234,7 +234,8 @@ describe('usePoller cancellation', () => {
  * parked it permanently -- no failure counted, no backoff, no failure ceiling,
  * and a status frozen on whatever mode it was in. The eight-second client
  * timeout does not cover every path: a captive portal can leave a fetch
- * hanging, and the sensor-data endpoint fetch has no timeout of its own.
+ * hanging. The sensor-data endpoint fetch is bounded separately, by
+ * SENSOR_TIMEOUT_MS in sensor-data-provider.ts.
  */
 describe('usePoller deadline', () => {
   /** A tick that hangs forever, and a way to see whether it may still act. */

@@ -216,8 +216,9 @@ export function cadence({
  * therefore parked it forever -- no failure counted, so no backoff, no failure
  * ceiling, and a status display frozen on whatever mode it was in. The
  * eight-second client timeout does not cover every path there: a captive portal
- * or a dropped connection can leave a fetch hanging, and the sensor-data
- * endpoint fetch has no timeout of its own.
+ * or a dropped connection can leave a fetch hanging. The sensor-data endpoint
+ * fetch is bounded separately, by SENSOR_TIMEOUT_MS in sensor-data-provider.ts,
+ * which is a different eight seconds and not this one.
  *
  * Twice the idle interval, so an unusually slow but working tick is never
  * mistaken for a wedged one. Exceeding it counts as a failure, which is what
