@@ -157,6 +157,21 @@ git fetch autoll3
 git diff autoll3/main -- src/autopilot/ src/providers/ src/components/
 ```
 
-After the identity refactor this should be **empty**. Anything it prints is
-either drift worth resolving or a deliberate divergence worth adding to the
-table above.
+After the identity refactor this prints two files, and both are expected:
+
+- `src/autopilot/schedule.ts`
+- `src/autopilot/usePoller.test.ts`
+
+Each carries a comment explaining why the tick deadline sits above the client
+timeout, and the explanation genuinely differs between the builds: AutoLL-3's
+sensor payload arrives through an untimed dynamic import, this one's through a
+fetch bounded by `SENSOR_TIMEOUT_MS`. Prose about the sensor mechanism is the
+one place the shared engine is allowed to diverge.
+
+Anything else it prints is either drift worth resolving or a deliberate
+divergence worth adding to the table above.
+
+It is worth running even when it prints only those two. This check is what
+caught both of them still claiming the sensor fetch was unbounded months after
+it stopped being — a divergence that was legitimate and stale at the same
+time, which is not a combination a conflict marker would ever have shown you.
