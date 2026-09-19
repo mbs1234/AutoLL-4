@@ -278,7 +278,15 @@ browser at it before a park day and confirm the build on your phone is the one
 the repository says it is.
 
 `main` is protected: a pull request, a passing `check` run, no force-pushes and
-no deletions, enforced for administrators too. The deploy gates independently
+no deletions. It is **not** enforced for administrators, which is the second
+place this differs from AutoLL-3 on purpose. This is the build you reach for
+when the other one has stopped working, possibly from a park, and a rule that
+makes the fallback slower to repair than the thing it is standing in for gets
+the priority backwards. Everything still goes through a pull request by
+default; the owner can go around it when the situation warrants, and should
+otherwise not.
+
+The deploy gates independently
 on typecheck and the full test suite — 115 suites, 1455 tests — and if either
 fails, the publish is skipped and Pages keeps serving the build already on your
 phone.
