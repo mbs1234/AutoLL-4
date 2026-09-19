@@ -277,10 +277,18 @@ the site is assembled from, plus a SHA-256 of every file served. Point a
 browser at it before a park day and confirm the build on your phone is the one
 the repository says it is.
 
-`main` is protected: a pull request, a passing `check` run, linear history, no
-force-pushes. The deploy gates independently on typecheck and the full test
-suite — 115 suites, 1455 tests — and if either fails, the publish is skipped and
-Pages keeps serving the build already on your phone.
+`main` is protected: a pull request, a passing `check` run, no force-pushes and
+no deletions, enforced for administrators too. The deploy gates independently
+on typecheck and the full test suite — 115 suites, 1455 tests — and if either
+fails, the publish is skipped and Pages keeps serving the build already on your
+phone.
+
+Linear history is **not** required here, and that is the one place this differs
+from AutoLL-3 deliberately. Fixes arrive from AutoLL-3 by `git merge`, and the
+merge commit is what records that they arrived: squash it and
+`git log HEAD..autoll3/main` reports the same commits as unmerged forever,
+re-conflicting the whole tree on every sync afterwards. Requiring linear
+history would force exactly that squash. See `docs/SYNC.md`.
 
 ## Development
 
