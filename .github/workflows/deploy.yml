@@ -6,18 +6,28 @@ name: Build and deploy AutoLL-4
 #   main - TypeScript/React source. `vite build` emits ONLY bg1.js,
 #            bg1.css, responder.html and their chunks (see the
 #            rollupOptions.input list in vite.config.mts).
-#   goofy  - upstream's published Pages output. It is the only place the
-#            surrounding site exists: index.html (which generates the
+#   AutoLL-2 installer revision - upstream's published Pages output. It is the
+#            only place the surrounding site exists: index.html (which generates the
 #            bookmarklet), start.html, news.html, contact.html,
 #            autoloader.user.js, icon.png, index.css.
 #
 # Building main alone gives you an app with no way to install or launch
 # it. This workflow builds fresh code from main, then overlays the static
-# pages from goofy, then repoints upstream URLs at this fork.
+# pages from the pinned installer revision, then repoints upstream URLs at this
+# fork.
 
 on:
   push:
     branches: [main]
+    # Nothing under `docs/` that reaches the published site is markdown -- the
+    # guide ships as `user-guide.html` and its images -- so a prose commit
+    # cannot change the artifact and must not rebuild it. This matters most
+    # during a pre-trip freeze, when correcting a roadmap would otherwise
+    # republish the exact bundle the freeze exists to leave alone. A commit
+    # touching both prose and code still deploys: the filter skips a run only
+    # when every changed path matches.
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
     inputs:
       skip_checks:
@@ -45,6 +55,10 @@ env:
   # second spelling of that one constant and must agree with it. It is kept
   # spelled out because it brands files that never pass through the bundler.
   PAGES_ORIGIN: https://mbs1234.github.io/AutoLL-4
+  # Immutable installer input. A branch head would let a rerun of the same
+  # AutoLL-4 commit produce a different release without passing this
+  # repository's review gate.
+  AUTOLL2_INSTALLER_REV: a3531c6621cd8dd76582224792fceb635c93be12
 
 jobs:
   build:
@@ -58,14 +72,14 @@ jobs:
       - name: Check out source (main)
         uses: actions/checkout@v5
 
-      - name: Check out static site (goofy)
+      - name: Check out pinned static site
         uses: actions/checkout@v5
         with:
           # AutoLL-4 owns main; the inherited installer assets remain in the
           # reviewed AutoLL-2 source repository until they are independently
           # maintained here.
           repository: mbs1234/AutoLL-2
-          ref: goofy
+          ref: ${{ env.AUTOLL2_INSTALLER_REV }}
           path: goofy-static
 
       - name: Set up Node
@@ -114,7 +128,7 @@ jobs:
       - name: Build app bundle
         run: npm run build
 
-      - name: Overlay static site from goofy
+      - name: Overlay pinned static site
         run: |
           set -euo pipefail
           # Only files the mickey build does not emit. Build outputs
@@ -210,8 +224,9 @@ jobs:
       # it describes what is actually published.
       #
       # It records both source revisions because `dist` is assembled from the
-      # bundle in this repository and installer pages from `goofy`. The commit
-      # that triggered the run identifies only the first.
+      # bundle in this repository and installer pages from AutoLL-2. The commit
+      # that triggered the run identifies only the first, so the installer
+      # input is pinned and recorded separately.
       #
       # There is deliberately no `sha256sum --check` here. Re-reading the
       # files in the same step that just hashed them re-derives the same
@@ -219,10 +234,10 @@ jobs:
       # and what is worth failing the deploy over is a payload file MISSING,
       # which is checked below.
       # The user guide ships with the site so the installer pages can link
-      # to something that explains the app. Unlike the `goofy` overlay above,
-      # these files live in THIS repository, so a missing one is a broken
-      # checkout rather than an absent upstream page -- there is nothing to
-      # degrade to, and failing is the honest answer.
+      # to something that explains the app. Unlike the inherited installer
+      # overlay above, these files live in THIS repository, so a missing one is
+      # a broken checkout rather than an absent upstream page -- there is
+      # nothing to degrade to, and failing is the honest answer.
       #
       # It runs before the manifest below on purpose: the guide is served, so
       # it belongs in `autoll4-files.sha256` like every other served file.
@@ -242,7 +257,7 @@ jobs:
       - name: Create release manifest
         run: |
           set -euo pipefail
-          goofy_rev=$(git -C goofy-static rev-parse HEAD)
+          installer_rev=$(git -C goofy-static rev-parse HEAD)
           (
             cd dist
             find . -type f \
@@ -283,7 +298,7 @@ jobs:
               }
             done
             printf '{\n  "application": "AutoLL-4",\n  "sourceRevision": "%s",\n  "installerRevision": "%s",\n  "fileManifest": "autoll4-files.sha256"\n}\n' \
-              "$GITHUB_SHA" "$goofy_rev" > autoll4-release.json
+              "$GITHUB_SHA" "$installer_rev" > autoll4-release.json
           )
 
       - name: Show what will be deployed

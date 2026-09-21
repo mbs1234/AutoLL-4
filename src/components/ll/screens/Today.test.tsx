@@ -1,11 +1,18 @@
-import { fireEvent, screen, within } from '@testing-library/react';
-import { createRef } from 'react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
+import { type ReactElement, createRef } from 'react';
 
 import { createBooking, hm, wdw } from '@/__fixtures__/ll';
+import { mk } from '@/__fixtures__/resort';
+import { primeAudio, resetAudioForTests } from '@/autopilot/alert';
+import { leaseKey, quarantine } from '@/autopilot/lease';
 import { savePendingSearch } from '@/autopilot/nextll';
+import { planReview } from '@/autopilot/plancheck';
+import { holdScreenAwake, releaseScreenAwake } from '@/autopilot/wakelock';
 import TabsContext from '@/contexts/TabContext';
-import { ParkTime } from '@/datetime';
+import { ParkTime, parkDate } from '@/datetime';
 import { PARTY_IDS_KEY } from '@/hooks/useSavedParty';
+import kvdb from '@/kvdb';
+import { PLAN_CHECK_REVIEW_KEY } from '@/storageNamespace';
 import { TODAY, nav, setTime } from '@/testing';
 
 import Activity from './Activity';
@@ -13,7 +20,7 @@ import Configure from './Configure';
 import PlanCheck from './PlanCheck';
 import Timeline from './Timeline';
 import Today from './Today';
-import { BZ, DB, OFF, renderScreen } from './screenTestSetup';
+import { BZ, DB, OFF, llExperience, renderScreen } from './screenTestSetup';
 
 // Pins the clock to the repo's canonical TODAY (see @/testing), so "today"
 // means the date the fixtures are built for.
@@ -82,8 +89,11 @@ describe('Today', () => {
     expect(requestNotifications).toHaveBeenCalledTimes(1);
   });
 
-  it('marks Plan Check reviewed after opening it from the checklist', () => {
-    setup({ bookingDate: '2021-10-02' });
+  it('does not mark Plan Check reviewed merely because its route was opened', () => {
+    setup({
+      bookingDate: '2021-10-02',
+      targets: [{ experienceId: BZ, autoBook: true }],
+    });
     const item = screen
       .getAllByRole('listitem')
       .find(element => element.textContent?.includes('Run Plan Check'));
@@ -91,8 +101,116 @@ describe('Today', () => {
     expect(
       screen
         .getAllByRole('listitem')
-        .find(element => element.textContent?.includes('Plan Check reviewed'))
-    ).toHaveTextContent('Plan Check reviewed');
+        .find(element => element.textContent?.includes('Run Plan Check'))
+    ).toHaveTextContent('Run Plan Check');
+    expect(nav.goTo.mock.calls[0]?.[0].type).toBe(PlanCheck);
+  });
+
+  it('marks the rendered clean result reviewed and keeps it reopenable', () => {
+    const date = '2021-10-02';
+    const targets = [{ experienceId: BZ, autoBook: true }];
+    const experiences = [llExperience(BZ), llExperience(DB)];
+    setup({ bookingDate: date, targets, experiences });
+
+    const item = screen
+      .getAllByRole('listitem')
+      .find(element => element.textContent?.includes('Run Plan Check'));
+    fireEvent.click(within(item!).getByRole('button', { name: 'Open' }));
+    const routed = nav.goTo.mock.calls[0]?.[0] as ReactElement<{
+      onReviewed: (review: ReturnType<typeof planReview>) => void;
+    }>;
+    const review = planReview({
+      targets,
+      parkId: mk.id,
+      date,
+      experiences,
+      plans: [],
+      requireWholeParty: false,
+      avoidOverlaps: true,
+      dryRun: false,
+      tierLimitLifted: false,
+    });
+    act(() => routed.props.onReviewed(review));
+
+    const reviewed = screen
+      .getAllByRole('listitem')
+      .find(element => element.textContent?.includes('Plan Check reviewed'));
+    expect(reviewed).toHaveTextContent('✓ Plan Check reviewed');
+    fireEvent.click(within(reviewed!).getByRole('button', { name: 'Review' }));
+    expect(nav.goTo).toHaveBeenCalledTimes(2);
+    expect(kvdb.get(PLAN_CHECK_REVIEW_KEY)).toEqual(review);
+  });
+
+  it('does not certify a reviewed plan that has a blocker', () => {
+    const date = '2021-10-02';
+    const targets = [
+      {
+        experienceId: BZ,
+        autoBook: true,
+        after: new ParkTime(15),
+        before: new ParkTime(10),
+      },
+    ];
+    const experiences = [llExperience(BZ), llExperience(DB)];
+    const review = planReview({
+      targets,
+      parkId: mk.id,
+      date,
+      experiences,
+      plans: [],
+      requireWholeParty: false,
+      avoidOverlaps: true,
+      dryRun: false,
+      tierLimitLifted: false,
+    });
+    kvdb.set(PLAN_CHECK_REVIEW_KEY, review);
+
+    setup({ bookingDate: date, targets, experiences });
+
+    const item = screen
+      .getAllByRole('listitem')
+      .find(element => element.textContent?.includes('Plan Check found'));
+    expect(item).toHaveTextContent('○ Plan Check found 1 blocker');
+  });
+
+  it('does not carry a Plan Check acknowledgement to another date', () => {
+    const targets = [{ experienceId: BZ, autoBook: true }];
+    const experiences = [llExperience(BZ), llExperience(DB)];
+    kvdb.set(
+      PLAN_CHECK_REVIEW_KEY,
+      planReview({
+        targets,
+        parkId: mk.id,
+        date: '2021-10-02',
+        experiences,
+        plans: [],
+        requireWholeParty: false,
+        avoidOverlaps: true,
+        dryRun: false,
+        tierLimitLifted: false,
+      })
+    );
+
+    setup({ bookingDate: '2021-10-03', targets, experiences });
+    expect(screen.getByText(/Run Plan Check before enabling/)).toBeVisible();
+  });
+
+  it('shows unresolved protection on Today and routes to its details', async () => {
+    await quarantine(leaseKey(BZ, parkDate()), {
+      id: 'move-1',
+      kind: 'modify',
+      to: '11:00:00',
+    });
+    setup();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '1 unresolved Lightning Lane change needs review.'
+    );
+    expect(
+      screen.getByText(/stopped automatically booking, moving, or swapping/)
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Review protection' }));
+    expect(nav.goTo.mock.calls[0]?.[0].type).toBe(Activity);
   });
 
   it('shows the most recent find', () => {
@@ -351,6 +469,207 @@ describe('Today backoff', () => {
     });
     expect(screen.getByText(/Stopped after 8 failed checks/)).toBeVisible();
     expect(screen.queryByText(/in a row/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The alert channel, which on iOS Safari is the only one there is.
+ *
+ * `Notification` is undefined outside an installed web app and vibration is
+ * unimplemented, so a context that never unlocked -- or that iOS interrupted
+ * -- leaves a run unable to reach anybody, silently. Found on a phone: a ride
+ * came up, autopilot alerted, and nothing made a sound.
+ */
+describe('Today alert sound', () => {
+  type AudioGlobal = Omit<typeof globalThis, 'AudioContext'> & {
+    AudioContext?: unknown;
+  };
+  const g = globalThis as AudioGlobal;
+
+  function fakeAudio(state: string) {
+    const listeners = new Set<() => void>();
+    const ctx = {
+      state,
+      currentTime: 0,
+      resume: jest.fn(async () => {
+        await Promise.resolve();
+        ctx.setState('running');
+      }),
+      createOscillator: jest.fn(() => ({
+        type: '',
+        frequency: { value: 0 },
+        connect: jest.fn(() => gain),
+        start: jest.fn(),
+        stop: jest.fn(),
+      })),
+      createGain: jest.fn(() => gain),
+      sampleRate: 48_000,
+      createBuffer: jest.fn(() => ({})),
+      createBufferSource: jest.fn(() => ({
+        buffer: undefined as unknown,
+        connect: jest.fn(),
+        start: jest.fn(),
+      })),
+      destination: {},
+      addEventListener: jest.fn((type: string, listener: () => void) => {
+        if (type === 'statechange') listeners.add(listener);
+      }),
+      removeEventListener: jest.fn((type: string, listener: () => void) => {
+        if (type === 'statechange') listeners.delete(listener);
+      }),
+      setState(next: string) {
+        this.state = next;
+        for (const listener of listeners) listener();
+      },
+    };
+    const gain = {
+      gain: {
+        setValueAtTime: jest.fn(),
+        linearRampToValueAtTime: jest.fn(),
+      },
+      connect: jest.fn(() => ({})),
+    };
+    g.AudioContext = jest.fn(() => ctx);
+    return ctx;
+  }
+
+  beforeEach(() => resetAudioForTests());
+  afterEach(() => {
+    resetAudioForTests();
+    delete g.AudioContext;
+  });
+
+  // Offering a sound test on a browser that cannot make one is a row that can
+  // only ever report failure.
+  it('says nothing where the browser has no audio at all', () => {
+    setup({ enabled: true });
+    expect(screen.queryByText('Test sound')).not.toBeInTheDocument();
+  });
+
+  it('warns while sound would be silent', () => {
+    fakeAudio('suspended');
+    setup({ enabled: true });
+    expect(screen.getByText(/Alert sound is not armed/)).toBeVisible();
+  });
+
+  it('keeps the pre-flight sound check neutral while autopilot is off', () => {
+    fakeAudio('suspended');
+    setup({ enabled: false });
+    const status = screen.getByText(
+      'Test alert sound before starting Autopilot.'
+    );
+    expect(status).toBeVisible();
+    expect(status).toHaveClass('text-gray-600');
+    expect(status).not.toHaveClass('text-red-700');
+  });
+
+  it('warns whenever autopilot is enabled, including after it stops', () => {
+    fakeAudio('suspended');
+    setup({
+      enabled: true,
+      status: {
+        mode: 'stopped',
+        consecutiveFailures: 8,
+        polls: 20,
+        lastError: 'Request failed',
+      },
+    });
+    expect(screen.getByText(/Alert sound is not armed/)).toHaveClass(
+      'text-red-700'
+    );
+  });
+
+  it('wakes the sound up on demand and says so', async () => {
+    const ctx = fakeAudio('suspended');
+    setup({ enabled: true });
+    await act(async () => {
+      screen.getByText('Test sound').click();
+    });
+    expect(ctx.resume).toHaveBeenCalled();
+    // Actually played, not merely woken: the point of the button is hearing it.
+    expect(ctx.createOscillator).toHaveBeenCalled();
+    expect(screen.getByText('Alert sound is armed.')).toBeVisible();
+  });
+
+  it('reports a context that refuses to wake, rather than claiming success', async () => {
+    const ctx = fakeAudio('suspended');
+    ctx.resume = jest.fn(async () => {
+      throw new Error('gesture required');
+    });
+    setup({ enabled: true });
+    await act(async () => {
+      screen.getByText('Test sound').click();
+    });
+    expect(screen.getByText(/Alert sound is not armed/)).toBeVisible();
+  });
+
+  it('reports an interruption immediately rather than waiting for a poll', () => {
+    const ctx = fakeAudio('running');
+    primeAudio();
+    setup({ enabled: true });
+    expect(screen.getByText('Alert sound is armed.')).toBeVisible();
+
+    act(() => ctx.setState('interrupted'));
+
+    expect(screen.getByText(/Alert sound is not armed/)).toBeVisible();
+  });
+});
+
+describe('Today screen wake status', () => {
+  const OWNER = Symbol('today-wake-test');
+
+  function installWakeLock() {
+    const listeners = new Set<() => void>();
+    const sentinel = {
+      release: jest.fn(async () => undefined),
+      addEventListener: jest.fn((type: string, listener: () => void) => {
+        if (type === 'release') listeners.add(listener);
+      }),
+      dropFromBrowser() {
+        for (const listener of listeners) listener();
+      },
+    };
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: { request: jest.fn(async () => sentinel) },
+    });
+    return sentinel;
+  }
+
+  afterEach(async () => {
+    await releaseScreenAwake(OWNER);
+    Reflect.deleteProperty(navigator, 'wakeLock');
+  });
+
+  it('omits the row when the browser has no wake-lock API', () => {
+    setup({ enabled: true });
+    expect(screen.queryByText(/Screen may sleep/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Screen is being kept awake/)
+    ).not.toBeInTheDocument();
+  });
+
+  it('warns when screen wake is supported but idle', () => {
+    installWakeLock();
+    setup({ enabled: true });
+    expect(screen.getByText(/Screen may sleep/)).toBeVisible();
+  });
+
+  it('omits an idle wake-lock warning while autopilot is off', () => {
+    installWakeLock();
+    setup({ enabled: false });
+    expect(screen.queryByText(/Screen may sleep/)).not.toBeInTheDocument();
+  });
+
+  it('shows a held lock and reacts when the browser releases it', async () => {
+    const sentinel = installWakeLock();
+    await holdScreenAwake(OWNER);
+    setup({ enabled: true });
+    expect(screen.getByText('Screen is being kept awake.')).toBeVisible();
+
+    act(() => sentinel.dropFromBrowser());
+
+    expect(screen.getByText(/Screen may sleep/)).toBeVisible();
   });
 });
 

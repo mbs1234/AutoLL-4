@@ -1,0 +1,729 @@
+import '@testing-library/jest-dom';
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
+
+import { primeAudio, resetAudioForTests } from '@/autopilot/alert';
+import { holdScreenAwake, releaseScreenAwake } from '@/autopilot/wakelock';
+import { AutopilotState } from '@/contexts/AutopilotContext';
+import TopAutopilotContext from '@/contexts/TopAutopilotContext';
+
+import PocketShield from './PocketShield';
+import {
+  MAX_FINGER_RADIUS_PX,
+  MIN_TAP_GAP_MS,
+  TAPS_REQUIRED,
+} from './pocketGuard';
+
+const state: AutopilotState = {
+  enabled: true,
+  setEnabled: () => {},
+  status: { mode: 'approach', consecutiveFailures: 0, polls: 8 },
+  targets: [],
+  targetsHere: [{ experienceId: 'ride', autoBook: true }],
+  isWatched: () => false,
+  addTarget: () => {},
+  removeTarget: () => {},
+  replaceTargets: () => {},
+  toggleAutoBook: () => {},
+  toggleAutoModify: () => {},
+  toggleBookThenMove: () => {},
+  togglePaused: () => {},
+  toggleAutoSwap: () => {},
+  setTargetWindow: () => {},
+  setTargetRank: () => {},
+  togglePasskey: () => {},
+  passkeyStatus: 'off',
+  notifications: 'granted',
+  requestNotifications: () => {},
+  bookingLog: [],
+  sessionLog: [],
+  bookedCount: 2,
+  requireWholeParty: false,
+  setRequireWholeParty: () => {},
+  dryRun: false,
+  setDryRun: () => {},
+  avoidOverlaps: false,
+  setAvoidOverlaps: () => {},
+  skipCounts: {},
+  dropSummaries: [],
+};
+
+type AudioGlobal = Omit<typeof globalThis, 'AudioContext'> & {
+  AudioContext?: unknown;
+};
+const audioGlobal = globalThis as AudioGlobal;
+const HEALTH_OWNER = Symbol('pocket-health-test');
+
+function installAudio(state: string) {
+  const listeners = new Set<() => void>();
+  const gain = {
+    gain: {
+      setValueAtTime: jest.fn(),
+      linearRampToValueAtTime: jest.fn(),
+    },
+    connect: jest.fn(() => ({})),
+  };
+  const ctx = {
+    state,
+    currentTime: 0,
+    resume: jest.fn(async () => {
+      ctx.setState('running');
+    }),
+    createOscillator: jest.fn(() => ({
+      type: '',
+      frequency: { value: 0 },
+      connect: jest.fn(() => gain),
+      start: jest.fn(),
+      stop: jest.fn(),
+    })),
+    createGain: jest.fn(() => gain),
+    sampleRate: 48_000,
+    createBuffer: jest.fn(() => ({})),
+    createBufferSource: jest.fn(() => ({
+      buffer: undefined as unknown,
+      connect: jest.fn(),
+      start: jest.fn(),
+    })),
+    destination: {},
+    addEventListener: jest.fn((type: string, listener: () => void) => {
+      if (type === 'statechange') listeners.add(listener);
+    }),
+    removeEventListener: jest.fn((type: string, listener: () => void) => {
+      if (type === 'statechange') listeners.delete(listener);
+    }),
+    setState(next: string) {
+      this.state = next;
+      for (const listener of listeners) listener();
+    },
+  };
+  audioGlobal.AudioContext = jest.fn(() => ctx);
+  return ctx;
+}
+
+function installWakeLock() {
+  const listeners = new Set<() => void>();
+  const sentinel = {
+    release: jest.fn(async () => undefined),
+    addEventListener: jest.fn((type: string, listener: () => void) => {
+      if (type === 'release') listeners.add(listener);
+    }),
+    dropFromBrowser() {
+      for (const listener of listeners) listener();
+    },
+  };
+  Object.defineProperty(navigator, 'wakeLock', {
+    configurable: true,
+    value: { request: jest.fn(async () => sentinel) },
+  });
+  return sentinel;
+}
+
+function setup(
+  overrides: Partial<AutopilotState> = {},
+  options: {
+    wideTouchLearned?: boolean;
+    onLearnWideTouch?: () => void;
+  } = {}
+) {
+  const onExit = jest.fn();
+  render(
+    <TopAutopilotContext value={{ ...state, ...overrides }}>
+      <PocketShield onExit={onExit} {...options} />
+    </TopAutopilotContext>
+  );
+  return onExit;
+}
+
+const box = () => screen.getByRole('button', { name: /unlock the screen/i });
+const backdrop = () => screen.getByTestId('pocket-shield');
+
+/**
+ * Taps have to be separated in time or the guard refuses them.
+ *
+ * `fireEvent` fires everything inside one millisecond, which the gap floor
+ * reads -- correctly -- as one contact smearing across the glass rather than
+ * three deliberate taps. Every tap here therefore moves the clock first, and a
+ * test that forgets to is a test that proves the floor exists.
+ */
+let clock = 0;
+beforeEach(() => {
+  clock = 1_000_000;
+  jest.spyOn(Date, 'now').mockImplementation(() => clock);
+});
+afterEach(async () => {
+  await releaseScreenAwake(HEALTH_OWNER);
+  resetAudioForTests();
+  delete audioGlobal.AudioContext;
+  Reflect.deleteProperty(navigator, 'wakeLock');
+  jest.restoreAllMocks();
+});
+
+function tap(element: HTMLElement) {
+  clock += MIN_TAP_GAP_MS;
+  fireEvent.click(element);
+}
+
+const finger = (
+  identifier: number,
+  radius = 12,
+  clientX = 10,
+  clientY = 10
+) => ({
+  identifier,
+  radiusX: radius,
+  radiusY: radius,
+  clientX,
+  clientY,
+});
+
+const ovalFinger = (
+  identifier: number,
+  radiusX: number,
+  radiusY: number,
+  clientX = 10,
+  clientY = 10
+) => ({ identifier, radiusX, radiusY, clientX, clientY });
+
+function touchStart(
+  element: HTMLElement,
+  touches: ReturnType<typeof finger>[],
+  changedTouches = touches
+) {
+  fireEvent.touchStart(element, { touches, changedTouches });
+}
+
+function touchMove(
+  element: HTMLElement,
+  touches: ReturnType<typeof finger>[],
+  changedTouches = touches
+) {
+  fireEvent.touchMove(element, { touches, changedTouches });
+}
+
+function touchEnd(
+  element: HTMLElement,
+  changedTouches: ReturnType<typeof finger>[],
+  touches: ReturnType<typeof finger>[] = []
+) {
+  fireEvent.touchEnd(element, { touches, changedTouches });
+}
+
+function deliberateTouch(element: HTMLElement) {
+  clock += MIN_TAP_GAP_MS;
+  const contact = finger(1);
+  touchStart(element, [contact]);
+  touchEnd(element, [contact]);
+  // Browsers follow a touch with this compatibility click. It is part of the
+  // sequence under test, not a second action by the user.
+  fireEvent.click(element);
+}
+
+describe('the pocket shield', () => {
+  // A blank screen would answer nothing. The question being asked while the
+  // phone is out of a pocket is almost always "is it still working", and this
+  // is meant to answer it without being unlocked at all.
+  it('says what the engine is doing, in the words the rest of the app uses', () => {
+    setup();
+    expect(screen.getByText('Checking often')).toBeInTheDocument();
+    expect(screen.getByText(/1 armed/)).toBeInTheDocument();
+    expect(screen.getByText(/2 booked today/)).toBeInTheDocument();
+    expect(screen.getByTestId('pocket-health')).toHaveTextContent(
+      'Sound unavailable · Screen wake unavailable'
+    );
+  });
+
+  it('shows both alert channels when sound and screen wake are healthy', async () => {
+    installAudio('running');
+    primeAudio();
+    installWakeLock();
+    await holdScreenAwake(HEALTH_OWNER);
+    setup();
+
+    expect(screen.getByTestId('pocket-health')).toHaveTextContent(
+      'Sound on · Screen held'
+    );
+    expect(screen.getByTestId('pocket-health')).toHaveClass('text-gray-400');
+  });
+
+  it.each([
+    ['suspended', true, 'No sound · Screen held'],
+    ['running', false, 'Sound on · Screen may sleep'],
+    ['suspended', false, 'No sound · Screen may sleep'],
+  ])(
+    'names impaired channels with audio %s and held=%s',
+    async (audio, held, expected) => {
+      if (audio === 'running') {
+        installAudio(audio);
+        primeAudio();
+      } else {
+        installAudio(audio);
+      }
+      installWakeLock();
+      if (held) await holdScreenAwake(HEALTH_OWNER);
+      setup();
+
+      expect(screen.getByTestId('pocket-health')).toHaveTextContent(expected);
+      expect(screen.getByTestId('pocket-health')).toHaveClass(
+        'font-semibold',
+        'text-red-300'
+      );
+    }
+  );
+
+  it('updates from native audio and wake-lock events without a poll', async () => {
+    const ctx = installAudio('running');
+    primeAudio();
+    const sentinel = installWakeLock();
+    await holdScreenAwake(HEALTH_OWNER);
+    setup();
+    expect(screen.getByTestId('pocket-health')).toHaveTextContent(
+      'Sound on · Screen held'
+    );
+
+    act(() => ctx.setState('interrupted'));
+    expect(screen.getByTestId('pocket-health')).toHaveTextContent(
+      'No sound · Screen held'
+    );
+
+    act(() => sentinel.dropFromBrowser());
+    expect(screen.getByTestId('pocket-health')).toHaveTextContent(
+      'No sound · Screen may sleep'
+    );
+  });
+
+  it('lifts after three taps on the target', () => {
+    const onExit = setup();
+    for (let i = 0; i < TAPS_REQUIRED - 1; ++i) {
+      tap(box());
+      expect(onExit).not.toHaveBeenCalled();
+    }
+    tap(box());
+    expect(onExit).toHaveBeenCalled();
+  });
+
+  it('counts a deliberate touch once, not again for its synthetic click', () => {
+    setup();
+    deliberateTouch(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+  });
+
+  it('does not credit a touchend whose touchstart preceded the shield', () => {
+    setup();
+    const contact = finger(40);
+    touchEnd(box(), [contact]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+  });
+
+  it.each([
+    [20, 60],
+    [60, 20],
+  ])(
+    'accepts an elongated fingertip reported as %d by %d',
+    (radiusX, radiusY) => {
+      setup();
+      clock += MIN_TAP_GAP_MS;
+      const contact = ovalFinger(9, radiusX, radiusY);
+      touchStart(box(), [contact]);
+      touchEnd(box(), [contact]);
+      fireEvent.click(box());
+      expect(box()).toHaveAccessibleName(/2 more taps/i);
+      expect(
+        screen.queryByText(/keep using one fingertip/i)
+      ).not.toBeInTheDocument();
+    }
+  );
+
+  // Found by writing this suite: the first draft tapped three times without
+  // moving the clock and did not unlock, which is the floor doing its job. One
+  // contact dragging across the glass emits a burst like that.
+  it('refuses three taps that arrive in the same instant', () => {
+    const onExit = setup();
+    fireEvent.click(box());
+    fireEvent.click(box());
+    fireEvent.click(box());
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it('counts down so the remaining taps are never a guess', () => {
+    setup();
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    tap(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+  });
+
+  // The rule that does the real work. Three lucky hits over a long walk are
+  // conceivable; three with no miss between them are not.
+  it('resets progress when a touch lands anywhere else', () => {
+    const onExit = setup();
+    tap(box());
+    tap(box());
+    tap(backdrop());
+    tap(box());
+    expect(onExit).not.toHaveBeenCalled();
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+  });
+
+  /**
+   * The regression sequence, kept whole. In v1.1.2 the click after the broad
+   * miss happened to reset progress. Suppressing that click without making the
+   * touch itself reset would silently remove the only reset the sequence had.
+   */
+  it('resets on a broad miss and ignores every later event in its click sequence', () => {
+    setup();
+    deliberateTouch(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    const broad = finger(2, MAX_FINGER_RADIUS_PX + 1);
+    touchStart(backdrop(), [broad]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(backdrop(), [broad]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    fireEvent.click(backdrop());
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+  });
+
+  it('turns one broad target sequence into one moving-target escape attempt', () => {
+    const onLearnWideTouch = jest.fn();
+    setup({}, { onLearnWideTouch });
+    deliberateTouch(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+    const broad = finger(2, MAX_FINGER_RADIUS_PX + 1);
+    const before = box().dataset.position;
+    touchStart(box(), [broad]);
+    expect(box().dataset.position).toBe(before);
+    expect(random).not.toHaveBeenCalled();
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(box(), [broad]);
+    expect(box().dataset.position).not.toBe(before);
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(screen.getByText(/keep using one fingertip/i)).toBeVisible();
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(onLearnWideTouch).not.toHaveBeenCalled();
+  });
+
+  it('moves exactly once when a dragged contact later earns a wide attempt', () => {
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+    setup();
+    const before = box().dataset.position;
+
+    clock += MIN_TAP_GAP_MS;
+    const narrowStart = finger(41, 12, 10, 10);
+    touchStart(box(), [narrowStart]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(box().dataset.position).toBe(before);
+
+    const narrowDrag = finger(41, 12, 43, 10);
+    touchMove(box(), [narrowDrag]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(box().dataset.position).toBe(before);
+
+    const broadDrag = finger(41, MAX_FINGER_RADIUS_PX + 1, 60, 10);
+    touchMove(box(), [broadDrag]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(box().dataset.position).toBe(before);
+
+    touchEnd(box(), [broadDrag]);
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(box().dataset.position).not.toBe(before);
+    expect(random).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(random).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks after three touches that drag before they broaden', () => {
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+    const onLearnWideTouch = jest.fn();
+    const onExit = setup({}, { onLearnWideTouch });
+    const labels: (string | null)[] = [];
+    const exitCounts: number[] = [];
+
+    for (let attempt = 0; attempt < TAPS_REQUIRED; ++attempt) {
+      clock += MIN_TAP_GAP_MS;
+      const id = 50 + attempt;
+      const remaining = TAPS_REQUIRED - attempt;
+      const before = box().dataset.position;
+      const narrowStart = finger(id, 12, 10, 10);
+      const narrowDrag = finger(id, 12, 43, 10);
+      const broadDrag = finger(id, MAX_FINGER_RADIUS_PX + 1, 60, 10);
+
+      touchStart(box(), [narrowStart]);
+      expect(box()).toHaveAccessibleName(
+        new RegExp(`${remaining} more taps?`, 'i')
+      );
+      expect(box().dataset.position).toBe(before);
+
+      touchMove(box(), [narrowDrag]);
+      expect(box()).toHaveAccessibleName(
+        new RegExp(`${remaining} more taps?`, 'i')
+      );
+      expect(box().dataset.position).toBe(before);
+
+      touchMove(box(), [broadDrag]);
+      expect(box()).toHaveAccessibleName(
+        new RegExp(`${remaining} more taps?`, 'i')
+      );
+      expect(box().dataset.position).toBe(before);
+
+      touchEnd(box(), [broadDrag]);
+      expect(box().dataset.position).not.toBe(before);
+      expect(random).toHaveBeenCalledTimes(attempt + 1);
+      fireEvent.click(box());
+      expect(random).toHaveBeenCalledTimes(attempt + 1);
+      labels.push(box().getAttribute('aria-label'));
+      exitCounts.push(onExit.mock.calls.length);
+    }
+
+    expect(labels.slice(0, 2)).toEqual([
+      'Unlock the screen: 2 more taps needed',
+      'Unlock the screen: 1 more tap needed',
+    ]);
+    expect(exitCounts).toEqual([0, 0, 1]);
+    expect(onLearnWideTouch).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks through three broad moving-target touches with centroid drift', () => {
+    const onLearnWideTouch = jest.fn();
+    const onExit = setup({}, { onLearnWideTouch });
+    const labels: (string | null)[] = [];
+    const exitCounts: number[] = [];
+
+    for (let attempt = 0; attempt < TAPS_REQUIRED; ++attempt) {
+      clock += MIN_TAP_GAP_MS;
+      const start = finger(20 + attempt, MAX_FINGER_RADIUS_PX + 1, 10, 10);
+      const moved = finger(20 + attempt, MAX_FINGER_RADIUS_PX + 1, 60, 10);
+      const before = box().dataset.position;
+
+      touchStart(box(), [start]);
+      expect(box().dataset.position).toBe(before);
+      expect(onExit).not.toHaveBeenCalled();
+
+      touchMove(box(), [moved]);
+      expect(box().dataset.position).toBe(before);
+      expect(onExit).not.toHaveBeenCalled();
+
+      touchEnd(box(), [moved]);
+      expect(box().dataset.position).not.toBe(before);
+      fireEvent.click(box());
+      labels.push(box().getAttribute('aria-label'));
+      exitCounts.push(onExit.mock.calls.length);
+    }
+
+    expect(labels.slice(0, 2)).toEqual([
+      'Unlock the screen: 2 more taps needed',
+      'Unlock the screen: 1 more tap needed',
+    ]);
+    expect(exitCounts).toEqual([0, 0, 1]);
+    expect(onLearnWideTouch).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets the escape when the next press stays at the old target', () => {
+    setup();
+    clock += MIN_TAP_GAP_MS;
+    const broad = finger(30, MAX_FINGER_RADIUS_PX + 1);
+    touchStart(box(), [broad]);
+    touchEnd(box(), [broad]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    clock += MIN_TAP_GAP_MS;
+    touchStart(backdrop(), [broad]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(backdrop(), [broad]);
+    fireEvent.click(backdrop());
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(
+      screen.queryByText(/keep using one fingertip/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('uses the ordinary path for a learned broad fingertip', () => {
+    setup({}, { wideTouchLearned: true });
+    clock += MIN_TAP_GAP_MS;
+    const broad = finger(31, MAX_FINGER_RADIUS_PX + 1);
+    const before = box().dataset.position;
+    touchStart(box(), [broad]);
+    expect(box().dataset.position).toBe(before);
+    touchEnd(box(), [broad]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(box().dataset.position).not.toBe(before);
+  });
+
+  it('keeps a staggered multi-touch invalid through both releases', () => {
+    setup();
+    const broad = finger(32, MAX_FINGER_RADIUS_PX + 1);
+    touchStart(box(), [broad]);
+    touchEnd(box(), [broad]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    const first = finger(3);
+    const second = finger(4);
+    touchStart(box(), [first]);
+    touchStart(backdrop(), [first, second], [second]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(box(), [first], [second]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(backdrop(), [second]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(
+      screen.queryByText(/keep using one fingertip/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('uses the escape when a contact broadens during movement', () => {
+    setup();
+    deliberateTouch(box());
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+    const before = box().dataset.position;
+    const contact = finger(5);
+    touchStart(box(), [contact]);
+    expect(box().dataset.position).toBe(before);
+
+    const narrowDrag = finger(5, 12, 43, 10);
+    touchMove(box(), [narrowDrag]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(box().dataset.position).toBe(before);
+
+    const broad = finger(5, MAX_FINGER_RADIUS_PX + 1, 60, 10);
+    touchMove(box(), [broad]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(box().dataset.position).toBe(before);
+    expect(random).not.toHaveBeenCalled();
+
+    touchEnd(box(), [broad]);
+    expect(box().dataset.position).not.toBe(before);
+    expect(random).toHaveBeenCalledTimes(1);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+    expect(random).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets escape progress when the next gesture is cancelled', () => {
+    setup();
+    const broad = finger(33, MAX_FINGER_RADIUS_PX + 1);
+    touchStart(box(), [broad]);
+    touchEnd(box(), [broad]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    touchStart(box(), [finger(6)]);
+    fireEvent.touchCancel(box(), {
+      touches: [],
+      changedTouches: [finger(6)],
+    });
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+  });
+
+  it('resets escape progress when a large contact travels too far', () => {
+    setup();
+    const broad = finger(34, MAX_FINGER_RADIUS_PX + 1);
+    touchStart(box(), [broad]);
+    touchEnd(box(), [broad]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/2 more taps/i);
+
+    clock += MIN_TAP_GAP_MS;
+    touchStart(box(), [broad]);
+    const dragged = finger(34, MAX_FINGER_RADIUS_PX + 1, 100, 10);
+    touchMove(box(), [dragged]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    touchEnd(box(), [dragged]);
+    fireEvent.click(box());
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+    expect(
+      screen.queryByText(/keep using one fingertip/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('resets when a contact drags instead of tapping', () => {
+    setup();
+    deliberateTouch(box());
+    touchStart(box(), [finger(8)]);
+    touchMove(box(), [finger(8, 12, 100, 10)]);
+    expect(box()).toHaveAccessibleName(/3 more taps/i);
+  });
+
+  it('prevents the touch gestures that can scroll or reload the page', () => {
+    setup();
+    expect(backdrop()).toHaveClass('touch-none', 'overscroll-none');
+    const event = createEvent.touchMove(backdrop(), {
+      cancelable: true,
+      touches: [finger(7)],
+      changedTouches: [finger(7)],
+    });
+    fireEvent(backdrop(), event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  // Asserted on the position index rather than the rendered `left`. Two of the
+  // eight positions share an x -- the target moves diagonally between them --
+  // so reading one coordinate made this pass or fail on where the random pick
+  // landed. It failed in CI on an unrelated pull request, which is the only
+  // reason it was caught.
+  it('moves the target after a tap, so it cannot be found by feel', () => {
+    setup();
+    const before = box().dataset.position;
+    tap(box());
+    expect(box().dataset.position).not.toBe(before);
+  });
+
+  // The property the flake was reaching for: wherever it goes, it is somewhere
+  // else. Run enough times that a random pick cannot hide a broken one.
+  it('never stays where it was, whichever position it starts from', () => {
+    setup();
+    for (let i = 0; i < 40; ++i) {
+      const before = box().dataset.position;
+      tap(box());
+      expect(box().dataset.position).not.toBe(before);
+      tap(backdrop());
+    }
+  });
+
+  // Being shielded over a dead engine is the one state where the shield is
+  // actively harmful, so it is the one state it shouts about.
+  it('says so loudly when autopilot has stopped', () => {
+    setup({ status: { mode: 'stopped', consecutiveFailures: 8, polls: 40 } });
+    expect(screen.getByText('Stopped')).toBeInTheDocument();
+    expect(screen.getByText(/no longer checking/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('pocket-health')).not.toBeInTheDocument();
+  });
+
+  it('uses the same alarm state when autopilot is off', () => {
+    setup({
+      enabled: false,
+      status: { mode: 'off', consecutiveFailures: 0, polls: 0 },
+    });
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getByText(/is off and is no longer checking/i)).toBeVisible();
+    expect(backdrop()).toHaveClass('bg-red-950');
+    expect(screen.queryByTestId('pocket-health')).not.toBeInTheDocument();
+  });
+
+  it('counts only unpaused targets with an automatic action', () => {
+    setup({
+      targetsHere: [
+        { experienceId: 'alert-only' },
+        { experienceId: 'book', autoBook: true },
+        { experienceId: 'paused', autoSwap: true, paused: true },
+      ],
+    });
+    expect(screen.getByText(/1 armed/)).toBeInTheDocument();
+  });
+});

@@ -65,6 +65,25 @@ describe('Activity log', () => {
     expect(screen.getByText(/Request failed/)).toBeVisible();
   });
 
+  it('renders an unknown outcome as a warning to check Disney Plans', () => {
+    setup({
+      bookingLog: [
+        {
+          name: 'Big Thunder',
+          at: new ParkTime(9, 47),
+          status: 'unknown',
+          detail: 'No answer — check your plans',
+        },
+      ],
+    });
+    expect(screen.getByText('no answer')).toBeVisible();
+    expect(screen.getByText(/check Disney Plans/)).toHaveTextContent(
+      'Big Thunder -- check Disney Plans'
+    );
+    expect(screen.queryByText(/check your plans/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('failed')).not.toBeInTheDocument();
+  });
+
   it('says when nothing has happened yet', () => {
     setup();
     expect(

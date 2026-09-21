@@ -60,12 +60,9 @@ them conflicted — every single hunk being "take AutoLL-3's side, change 3 to 4
 
 Those 49 literals now derive from `src/appIdentity.ts`.
 
-> **Landing note, 2026-09-18.** That refactor is on AutoLL-3 first
-> (mbs1234/AutoLL-3#41). It reaches this build with the next merge, and until
-> that merge happens the brand is still written out across this tree — so the
-> conflict-free merge described here is what to expect *after* it, not before.
-> The first merge that carries it will itself conflict on the brand, once,
-> and every one after that should not.
+> **Landing note, 2026-09-18.** That refactor reached AutoLL-4 before this sync,
+> through mbs1234/AutoLL-4#13. The 1.2.8 sync therefore preserved the identity
+> seam without a conflict; future syncs should do the same.
 
 What is left that genuinely differs once it has landed:
 
@@ -75,6 +72,7 @@ What is left that genuinely differs once it has landed:
 | `package.json` | `name`, `description`, `repository` — cannot import a constant |
 | `harness/index.html` | a static `<title>`; dev-only, cannot import a constant |
 | the sensor files | deliberately and permanently — see below |
+| `src/hooks/useDataLoader.tsx` | names `SensorDataUnavailable`, distinguishing the helper service being down from Disney refusing |
 | `.github/workflows/deploy.yml` | the sensor overlay, and `PAGES_ORIGIN`, which is a second spelling of `PAGES_BASE` for files that never pass through the bundler |
 | the docs | `README.md`, `FORK.md`, this file, the user guide, `SECURITY.md` |
 
@@ -152,21 +150,34 @@ git fetch autoll3 && git rev-list --count HEAD..autoll3/main
 
 ## Checking they are in step
 
+The check is deliberately in two parts. First, read every sensor-path
+difference by eye; this is the check a green suite cannot replace:
+
 ```bash
 git fetch autoll3
-git diff autoll3/main -- src/autopilot/ src/providers/ src/components/
+git diff autoll3/main -- src/api/ .github/workflows/deploy.yml
 ```
 
-After the identity refactor this prints two files, and both are expected:
+Then compare the shared application areas, including hooks because the sensor
+provider has one deliberate user-facing error there:
+
+```bash
+git diff autoll3/main -- src/autopilot/ src/providers/ src/components/ src/hooks/
+```
+
+After the 1.2.8 sync the second command prints three files, and all are
+expected:
 
 - `src/autopilot/schedule.ts`
 - `src/autopilot/usePoller.test.ts`
+- `src/hooks/useDataLoader.tsx`
 
-Each carries a comment explaining why the tick deadline sits above the client
-timeout, and the explanation genuinely differs between the builds: AutoLL-3's
-sensor payload arrives through an untimed dynamic import, this one's through a
-fetch bounded by `SENSOR_TIMEOUT_MS`. Prose about the sensor mechanism is the
-one place the shared engine is allowed to diverge.
+The first two carry comments explaining why the tick deadline sits above the
+client timeout, and the explanation genuinely differs between the builds:
+AutoLL-3's sensor payload arrives through an untimed dynamic import, this one's
+through a fetch bounded by `SENSOR_TIMEOUT_MS`. `useDataLoader.tsx` keeps the
+third failure class visible: the helper service is unavailable, rather than
+Disney refusing or a generic request failing.
 
 Anything else it prints is either drift worth resolving or a deliberate
 divergence worth adding to the table above.

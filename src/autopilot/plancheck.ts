@@ -3,7 +3,7 @@ import { Experience } from '@/api/ll';
 import { findExistingLL } from '@/autopilot/automodify';
 import { clashablePlans, windowClash } from '@/autopilot/overlap';
 import { isTier1 } from '@/autopilot/priority';
-import { WatchTarget, targetApplies } from '@/autopilot/watchlist';
+import { WatchTarget, targetActs, targetApplies } from '@/autopilot/watchlist';
 import { parkDate } from '@/datetime';
 
 export type PlanCheckLevel = 'blocker' | 'review' | 'ready';
@@ -39,6 +39,12 @@ export interface PlanCheckInput {
   tierLimitLifted: boolean;
 }
 
+export interface PlanReview {
+  /** Stable identity of the park/date/configuration and verdict reviewed. */
+  key: string;
+  blockers: number;
+}
+
 /**
  * Whether Autopilot would consider this target for a *booking*.
  *
@@ -54,15 +60,6 @@ function armedToBook(target: WatchTarget, input: PlanCheckInput) {
   if (!target.autoBook && !target.bookThenMove) return false;
   return !findExistingLL(input.plans, target.experienceId, input.date);
 }
-
-/** Whether any action at all is armed, for the watch-only advisory. */
-const acts = (target: WatchTarget) =>
-  !!(
-    target.autoBook ||
-    target.autoModify ||
-    target.bookThenMove ||
-    target.autoSwap
-  );
 
 const displayName = (target: WatchTarget, experiences: Experience[]) =>
   experiences.find(exp => exp.id === target.experienceId)?.name ??
@@ -126,7 +123,7 @@ export function checkPlan(input: PlanCheckInput): PlanCheckItem[] {
     );
   }
 
-  const armedAtAll = active.filter(acts);
+  const armedAtAll = active.filter(targetActs);
   if (armedAtAll.length === 0) {
     push(
       'review',
@@ -148,7 +145,7 @@ export function checkPlan(input: PlanCheckInput): PlanCheckItem[] {
         { kind: 'target', experienceId: target.experienceId }
       );
     }
-    if (acts(target) && target.paused) {
+    if (targetActs(target) && target.paused) {
       push(
         'review',
         `${name} has an action armed but is paused; it will alert only until resumed.`,
@@ -259,4 +256,53 @@ export function checkPlan(input: PlanCheckInput): PlanCheckItem[] {
       (a, b) => rank[a.item.level] - rank[b.item.level] || a.index - b.index
     )
     .map(({ item }) => item);
+}
+
+/**
+ * The exact review Today may acknowledge.
+ *
+ * A bare boolean outlived park, date and target changes. This key carries the
+ * plan's scope and action settings plus the verdict the checker produced. A
+ * changed plan that happens to render different findings therefore becomes
+ * unreviewed automatically, while harmless live-data churn that leaves the
+ * result unchanged does not nag the user to reopen the screen.
+ */
+export function planReview(
+  input: PlanCheckInput,
+  items: PlanCheckItem[] = checkPlan(input)
+): PlanReview {
+  const stable = (value: object) => JSON.stringify(value);
+  const targets = input.targets
+    .filter(target => targetApplies(target, input.parkId, input.date))
+    .map(target => ({
+      experienceId: target.experienceId,
+      name: target.name,
+      parkId: target.parkId,
+      date: target.date,
+      rank: target.rank,
+      minImprovementMinutes: target.minImprovementMinutes,
+      passkey: target.passkey === true,
+      after: target.after ? String(target.after) : undefined,
+      before: target.before ? String(target.before) : undefined,
+      autoBook: target.autoBook === true,
+      autoModify: target.autoModify === true,
+      autoSwap: target.autoSwap === true,
+      bookThenMove: target.bookThenMove === true,
+      paused: target.paused === true,
+    }))
+    .sort((a, b) => stable(a).localeCompare(stable(b)));
+  const verdict = [...items].sort((a, b) => stable(a).localeCompare(stable(b)));
+  return {
+    key: JSON.stringify({
+      parkId: input.parkId,
+      date: input.date,
+      targets,
+      requireWholeParty: input.requireWholeParty,
+      avoidOverlaps: input.avoidOverlaps,
+      dryRun: input.dryRun,
+      tierLimitLifted: input.tierLimitLifted,
+      items: verdict,
+    }),
+    blockers: items.filter(item => item.level === 'blocker').length,
+  };
 }

@@ -552,8 +552,8 @@
       stops working.
     </p>
     <div class="masthead-meta">
-      <span>Version 0.5.0</span>
-      <span>Three parts · 21 screens</span>
+      <span>Version 1.2.8</span>
+      <span>Three parts · 23 sections</span>
       <span>Unofficial · not endorsed by Disney</span>
     </div>
   </div>
@@ -956,17 +956,15 @@
           <tbody>
             <tr><td>Dry run</td><td>Off</td><td>Rehearsal. Every check runs and the log says what it <em>would</em> have done; nothing is booked.</td></tr>
             <tr><td>Whole party only</td><td>Off</td><td>Refuses to act unless everyone in your party is eligible.</td></tr>
-            <tr><td>Avoid clashes</td><td><strong>On</strong></td><td>Refuses a return time that lands on top of something you already hold, dining included.</td></tr>
+            <tr><td>Avoid clashes</td><td>Off</td><td>Refuses a return time that lands on top of something you already hold, dining included.</td></tr>
           </tbody>
         </table>
       </div>
       <p>
-        Avoid clashes is the only one that starts on, and only an explicit off
-        turns it off. The other two start off, and only a literal stored
-        <code>true</code> turns them on — the asymmetry follows the cost of
-        guessing wrong. Booking by hand only <em>warns</em> about an overlap and
-        lets you book anyway; here it skips instead, because there is nobody to
-        warn.
+        All three safeguards start off. Each turns on only when you explicitly
+        enable it, and an existing installation keeps the value it already
+        saved. Booking by hand only <em>warns</em> about an overlap and lets you
+        book anyway; here it skips instead, because there is nobody to warn.
       </p>
 
       <h4>Colour means something</h4>
@@ -1182,16 +1180,64 @@
         counts, refusal state, per-run locks and the drop-detection baseline are
         all cleared, and anything already available gets re-alerted.
       </p>
+      <p>
+        <strong>Check the sound before you rely on it.</strong> Under the
+        notification notices Today says whether the alert sound is armed, with
+        a <span class="ui">Test sound</span> button next to it. On iOS the chime
+        is not one channel of three — notifications need the page installed to
+        your Home Screen, and vibration is unimplemented — so if the sound is
+        not armed during a run, nothing can reach you. While Autopilot is off,
+        Today presents this as a neutral pre-flight check rather than a fault.
+        Tap <span class="ui">Test sound</span> before starting, and again after
+        any interruption if you want to verify it manually. If you hear two
+        notes, the channel works.
+      </p>
       <div class="call stop">
         <span class="call-label">The one hard limit</span>
         <p>
           <strong>Autopilot only runs while the page is open and in front of
           you.</strong> Lock the phone or switch apps and the browser throttles
           its timers to minutes. The screen wake lock exists to prevent exactly
-          this, and it is best-effort — where the phone refuses, nothing on
-          screen says so.
+          this, and it is best-effort. Today says <strong>Screen is being kept
+          awake</strong> while it is held and warns <strong>Screen may
+          sleep</strong> when the browser supports the lock but has not granted
+          one. That row appears only while Autopilot is on, because an idle
+          wake lock is expected when no checks are running.
         </p>
       </div>
+      <h4>Put the running phone in your pocket</h4>
+      <p>
+        Once Autopilot is on, tap <span class="ui">Pocket it</span>. The
+        full-screen guard leaves the poller and notifications running while
+        preventing the live glass from reaching the controls underneath it. It
+        also blocks page scrolling and pull-to-refresh; a reload would turn
+        Autopilot off.
+      </p>
+      <p>
+        To lift the guard, tap the moving circle three times. The three clean
+        taps must land within <strong>10 seconds</strong>. A miss, second
+        finger, drag or cancelled gesture clears all progress, and the target
+        moves after each accepted tap.
+      </p>
+      <p>
+        If the phone reports your fingertip as unusually large, keep using one
+        finger and follow the moving circle. Three large-contact taps within
+        <strong>20 seconds</strong> lift the guard through its escape path. It
+        allows a little more movement, still resets on a miss or second
+        contact, and remembers your phone until the page is reloaded so
+        re-pocketing does not make you repeat a separate setup.
+      </p>
+      <p>
+        The guarded screen is also a status display. It shows the current
+        checking pace, the number of targets that can actually act, today's
+        booking count, and a line such as <strong>Sound on · Screen held</strong>.
+        A red <strong>No sound</strong> or <strong>Screen may sleep</strong>
+        means to lift the guard and check the named channel; the status follows
+        the browser directly rather than waiting for the next poll. If
+        Autopilot stops or the 4am rollover turns it off, the guard changes to a
+        red warning. Lift it and deliberately start a new run; an off or stopped
+        guard is not still checking.
+      </p>
     </section>
 
     <section id="status">
@@ -1945,7 +1991,7 @@
             </tr>
             <tr>
               <td>4am park-day rollover</td>
-              <td>Autopilot off; log emptied; skip counts zeroed</td>
+              <td>Autopilot off; screen wake lock released; log emptied; skip counts zeroed</td>
             </tr>
           </tbody>
         </table>

@@ -5,6 +5,7 @@ import { ParkTime, parkDate } from '@/datetime';
 
 import {
   AutoBookLedger,
+  BookLedger,
   ClashCheck,
   actionWasRejected,
   withAttemptDispatch,
@@ -47,6 +48,8 @@ export type SwapOutcome =
       /** The HTTP status, when there was one. */ httpStatus?: number;
       /** Whether nothing was swapped, so a retry is safe. */
       rejected?: boolean;
+      /** Dispatched, and no answer came back. Set by the provider, not here. */
+      unknown?: boolean;
     };
 
 /**
@@ -187,7 +190,7 @@ export interface AutoSwapDeps {
     to: ParkTime;
   }) => RequestControl;
   guests: Guests;
-  ledger: AutoBookLedger;
+  ledger: BookLedger;
   /** Optional; when it reports a clash, the swap is abandoned. */
   clashes?: ClashCheck;
   /**

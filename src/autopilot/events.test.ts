@@ -190,6 +190,43 @@ describe('latestActivity', () => {
  * exactly the moment a user is asking why nothing is booking. Three more were
  * unlabelled beside it.
  */
+/**
+ * Status 0 means the request may have been acted on, which `fetch.ts` states in
+ * its own comment. Reporting that as a failure invites a second attempt at a
+ * reservation Disney may already hold.
+ */
+describe('an outcome nobody learned', () => {
+  const at = new ParkTime(9, 30);
+  const entry = (extra: Partial<BookingLogEntry> = {}): BookingLogEntry => ({
+    name: 'Space Mountain',
+    at,
+    status: 'unknown',
+    ...extra,
+  });
+
+  it('is not reported as a failure', () => {
+    const event = latestActivity({
+      bookingLog: [entry({ detail: 'No answer — check your plans' })],
+    });
+    expect(event?.text).not.toMatch(/failed on/i);
+    expect(event?.text).toBe(
+      'No answer for Space Mountain -- check Disney Plans'
+    );
+    expect(event?.text).not.toMatch(/check your plans/i);
+  });
+
+  it('still asks for attention, because the reservation may have moved', () => {
+    expect(latestActivity({ bookingLog: [entry()] })?.level).toBe('warn');
+  });
+
+  it('keeps calling a provably refused action a failure', () => {
+    const event = latestActivity({
+      bookingLog: [entry({ status: 'failed', detail: 'declined' })],
+    });
+    expect(event?.text).toContain('Failed on Space Mountain');
+  });
+});
+
 describe('SKIP_TEXT', () => {
   const union = (file: string, name: string): string[] => {
     const source = readFileSync(
@@ -211,12 +248,36 @@ describe('SKIP_TEXT', () => {
       ...union('automodify.ts', 'ModifySkipReason'),
       ...union('autoswap.ts', 'SwapSkipReason'),
       // Raised by the provider itself rather than returned by a helper, so no
-      // union declares them.
+      // union declares them. Kept by hand, which is the weak part: a reason
+      // added to the provider and not added here ships as a raw slug and this
+      // guard says nothing. That is exactly how 'waiting-to-retry' reached the
+      // screen, and it was still missing from this list afterwards.
       'outside-window',
       'tier-hold',
       'slots-full',
+      'waiting-to-retry',
+      // The one case where dating the action locks still costs a booking, so
+      // the words matter more here than anywhere else in this list: the action
+      // is to reload the other tabs, and "already-attempted" would have the
+      // owner wait instead.
+      'stale-lock',
     ];
     expect(declared.length).toBeGreaterThan(10);
     expect(declared.filter(reason => !(reason in SKIP_TEXT))).toEqual([]);
+  });
+
+  // The hand-kept list above proves a label exists; this proves the label is
+  // the thing the Activity log actually renders. Worth pinning for this one
+  // reason in particular: it is the single case where dating the action locks
+  // still costs a booking, and the words carry the only instruction that helps.
+  it('tells the log what an older build’s lock means', () => {
+    expect(
+      latestActivity({
+        bookingLog: [],
+        lastSkip: { name: 'Space Mountain', reason: 'stale-lock', at: now },
+      })?.text
+    ).toBe(
+      'Skipped Space Mountain: a lock left by an older version of the app is still blocking it'
+    );
   });
 });

@@ -68,11 +68,12 @@ function offerWithHeld(
   time: ParkTime,
   heldAt: ParkTime,
   facilityId = BZ,
-  guests = party()
+  guests = party(),
+  id = 'ent-1'
 ) {
   return {
     ...offerAt(time, guests),
-    itinerary: [{ facilityId, startTime: heldAt, overlap: 'NONE' }],
+    itinerary: [{ id, facilityId, startTime: heldAt, overlap: 'NONE' }],
   } as unknown as Offer<LLMP>;
 }
 
@@ -83,7 +84,7 @@ function deps(
     createModifyOffer: jest.fn(async () => offerAt(at(11))),
     book: jest.fn(async () => existingLL(at(11))),
     guests: party(),
-    ledger: new AutoBookLedger(),
+    ledger: new AutoBookLedger(DATE),
     ...overrides,
   } as Parameters<typeof attemptAutoModify>[4];
 }
@@ -154,7 +155,7 @@ describe('improvementMinutes()', () => {
 });
 
 describe('shouldModify()', () => {
-  const ledger = () => new AutoBookLedger();
+  const ledger = () => new AutoBookLedger(DATE);
 
   it('allows a large improvement', () => {
     const result = shouldModify(target(), existingLL(at(19)), at(11), ledger());
@@ -303,7 +304,7 @@ describe('attemptAutoModify()', () => {
     });
 
     it('takes no lock when it refuses', async () => {
-      const ledger = new AutoBookLedger();
+      const ledger = new AutoBookLedger(DATE);
       await attemptAutoModify(
         target(),
         experience,
@@ -535,14 +536,14 @@ describe('a targeted modify', () => {
         windowed({ minImprovementMinutes: 1 }),
         held,
         at(11),
-        new AutoBookLedger()
+        new AutoBookLedger(DATE)
       )
     ).toMatchObject({ ok: true });
   });
 
   it('still refuses the same gain without a named bar', () => {
     expect(
-      shouldModify(windowed(), held, at(11), new AutoBookLedger())
+      shouldModify(windowed(), held, at(11), new AutoBookLedger(DATE))
     ).toMatchObject({ ok: false, reason: 'not-an-improvement' });
   });
 
@@ -554,7 +555,7 @@ describe('a targeted modify', () => {
         windowed({ minImprovementMinutes: 1 }),
         held,
         at(9),
-        new AutoBookLedger()
+        new AutoBookLedger(DATE)
       )
     ).toMatchObject({ ok: false, reason: 'offer-outside-window' });
   });
@@ -571,7 +572,7 @@ describe('a targeted modify', () => {
         }),
         held,
         at(14),
-        new AutoBookLedger()
+        new AutoBookLedger(DATE)
       )
     ).toMatchObject({ ok: false, reason: 'not-an-improvement' });
   });
@@ -579,7 +580,7 @@ describe('a targeted modify', () => {
   // The post-offer re-check reads the same bar, so a targeted search is not
   // stopped by the very rule it relaxed one step earlier.
   it('commits an offer that clears the target bar', async () => {
-    const ledger = new AutoBookLedger();
+    const ledger = new AutoBookLedger(DATE);
     const outcome = await attemptAutoModify(
       windowed({ minImprovementMinutes: 1 }),
       experience,
@@ -605,6 +606,170 @@ describe('a targeted modify', () => {
  * any more. The offer response carries Disney's own view as of the offer.
  */
 describe('attemptAutoModify() against the offer itinerary', () => {
+  it('uses the exact split-party reservation rather than the first same-ride item', async () => {
+    const existing = existingLL(at(19), { id: 'ent-target' });
+    const outcome = await attemptAutoModify(
+      target(),
+      experience,
+      existing,
+      at(16, 40),
+      deps({
+        createModifyOffer: jest.fn(
+          async () =>
+            ({
+              ...offerAt(at(16, 40)),
+              itinerary: [
+                {
+                  id: 'ent-other',
+                  facilityId: BZ,
+                  startTime: at(20),
+                  overlap: 'NONE',
+                },
+                {
+                  id: 'ent-target',
+                  facilityId: BZ,
+                  startTime: at(13, 15),
+                  overlap: 'NONE',
+                },
+              ],
+            }) as unknown as Offer<LLMP>
+        ),
+      })
+    );
+
+    // Plans said 19:00 and the other half holds 20:00, but the reservation
+    // actually being changed is already at 13:15. Moving it to 16:40 is a
+    // downgrade and must be refused.
+    expect(outcome).toEqual({
+      status: 'skipped',
+      reason: 'offer-not-an-improvement',
+    });
+  });
+
+  it('matches the offer item through a guest entitlement id', async () => {
+    const existing = existingLL(at(19), {
+      id: 'booking-target',
+      guests: [{ id: 'a', name: 'A', entitlementId: 'ent-target' }],
+    });
+    const outcome = await attemptAutoModify(
+      target(),
+      experience,
+      existing,
+      at(16, 40),
+      deps({
+        createModifyOffer: jest.fn(
+          async () =>
+            ({
+              ...offerAt(at(16, 40)),
+              itinerary: [
+                {
+                  id: 'ent-other',
+                  facilityId: BZ,
+                  startTime: at(20),
+                  overlap: 'NONE',
+                },
+                {
+                  id: 'ent-target',
+                  facilityId: BZ,
+                  startTime: at(13, 15),
+                  overlap: 'NONE',
+                },
+              ],
+            }) as unknown as Offer<LLMP>
+        ),
+      })
+    );
+
+    expect(outcome).toEqual({
+      status: 'skipped',
+      reason: 'offer-not-an-improvement',
+    });
+  });
+
+  // Disney decorates ids -- `411504498;entityType=Attraction` -- and the three
+  // that meet in `offerBaseline` do not arrive in the same shape: a booking's
+  // own id is stripped by `itinerary.ts`, while entitlement ids and the
+  // offerset's `EXISTING_ITEM.id` are passed through raw. Comparing a bare id
+  // against a decorated one matches nothing, and because the check is
+  // fail-closed that silently refuses EVERY move. A fixture with bare ids on
+  // both sides cannot see it, which is why this one decorates Disney's side.
+  it('matches an offer item whose id still carries its entity type', async () => {
+    const existing = existingLL(at(19), { id: 'booking-target' });
+    const outcome = await attemptAutoModify(
+      target(),
+      experience,
+      existing,
+      at(16, 40),
+      deps({
+        createModifyOffer: jest.fn(
+          async () =>
+            ({
+              ...offerAt(at(16, 40)),
+              itinerary: [
+                {
+                  id: 'booking-target;entityType=Attraction',
+                  facilityId: BZ,
+                  startTime: at(13, 15),
+                  overlap: 'NONE',
+                },
+              ],
+            }) as unknown as Offer<LLMP>
+        ),
+      })
+    );
+
+    // The reservation being changed is already at 13:15, so 16:40 is a
+    // downgrade and must be refused for that reason -- not skipped as
+    // unidentifiable, which is what an unnormalised comparison produces.
+    expect(outcome).toEqual({
+      status: 'skipped',
+      reason: 'offer-not-an-improvement',
+    });
+  });
+
+  it('refuses an unidentified split-party baseline instead of guessing', async () => {
+    const outcome = await attemptAutoModify(
+      target(),
+      experience,
+      existingLL(at(19), { id: 'ent-target' }),
+      at(16, 40),
+      deps({
+        createModifyOffer: jest.fn(
+          async () =>
+            ({
+              ...offerAt(at(16, 40)),
+              itinerary: [
+                { facilityId: BZ, startTime: at(20), overlap: 'NONE' },
+                { facilityId: BZ, startTime: at(13, 15), overlap: 'NONE' },
+              ],
+            }) as unknown as Offer<LLMP>
+        ),
+      })
+    );
+    expect(outcome).toEqual({
+      status: 'skipped',
+      reason: 'ambiguous-existing-booking',
+    });
+  });
+
+  it('refuses a same-ride item identified as the other split reservation', async () => {
+    const outcome = await attemptAutoModify(
+      target(),
+      experience,
+      existingLL(at(19), { id: 'ent-target' }),
+      at(16, 40),
+      deps({
+        createModifyOffer: jest.fn(async () =>
+          offerWithHeld(at(16, 40), at(20), BZ, party(), 'ent-other')
+        ),
+      })
+    );
+    expect(outcome).toEqual({
+      status: 'skipped',
+      reason: 'ambiguous-existing-booking',
+    });
+  });
+
   // The snapshot says 19:00 and 16:40 looks like a two-hour gain. Disney says
   // the reservation is already at 13:15, which makes 16:40 three hours worse.
   it('refuses an offer that is worse than the reservation actually held', async () => {
@@ -691,7 +856,7 @@ describe('attemptAutoModify() against the offer itinerary', () => {
 describe('attemptAutoModify() commit boundary', () => {
   it('publishes neither a lock nor evidence when transport refuses before dispatch', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const ledger = new AutoBookLedger();
+    const ledger = new AutoBookLedger(DATE);
     const onCommitting = jest.fn();
     const outcome = await attemptAutoModify(
       target(),
@@ -720,7 +885,7 @@ describe('attemptAutoModify() commit boundary', () => {
 
   it('publishes neither a lock nor evidence when the lifecycle refuses dispatch', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const ledger = new AutoBookLedger();
+    const ledger = new AutoBookLedger(DATE);
     const onCommitting = jest.fn();
     const outcome = await attemptAutoModify(
       target(),

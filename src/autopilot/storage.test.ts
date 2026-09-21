@@ -1,4 +1,8 @@
 import '@/autopilot/autobook';
+import {
+  BOOKING_LOG_STATUSES,
+  BookingLogStatus,
+} from '@/autopilot/bookingStatus';
 import { BookingLogEntry } from '@/contexts/AutopilotContext';
 import { ParkTime, parkDate } from '@/datetime';
 import kvdb from '@/kvdb';
@@ -40,33 +44,58 @@ describe('booking log persistence', () => {
     // Newest first, as the provider builds it: `addLogEntry` prepends, and the
     // store now orders by time before applying the cap so a stale writer
     // cannot decide which rows survive by writing last.
-    const entries: BookingLogEntry[] = [
-      {
+    const byStatus: Record<BookingLogStatus, BookingLogEntry> = {
+      booked: {
+        name: 'A',
+        at: at(9, 45),
+        status: 'booked',
+        returnTime: at(11),
+      },
+      modified: {
+        name: 'B',
+        at: at(9, 46),
+        status: 'modified',
+        fromTime: at(19),
+        returnTime: at(11, 20),
+      },
+      swapped: {
+        name: 'C',
+        at: at(9, 47),
+        status: 'swapped',
+        replacedName: 'D',
+        fromTime: at(15),
+        returnTime: at(12),
+      },
+      failed: {
+        name: 'E',
+        at: at(9, 48),
+        status: 'failed',
+        detail: 'boom',
+      },
+      unknown: {
         name: 'F',
+        at: at(9, 49),
+        status: 'unknown',
+        detail: 'Network request failed',
+      },
+      skipped: {
+        name: 'G',
+        at: at(9, 50),
+        status: 'skipped',
+        detail: 'partial-party',
+      },
+      'dry-run': {
+        name: 'H',
         at: at(9, 51),
         status: 'dry-run',
         detail: 'book',
         returnTime: at(11),
         reason: 'rehearsed, nothing committed',
       },
-      { name: 'E', at: at(9, 50), status: 'failed', detail: 'boom' },
-      {
-        name: 'C',
-        at: at(9, 49),
-        status: 'swapped',
-        replacedName: 'D',
-        fromTime: at(15),
-        returnTime: at(12),
-      },
-      {
-        name: 'B',
-        at: at(9, 48),
-        status: 'modified',
-        fromTime: at(19),
-        returnTime: at(11, 20),
-      },
-      { name: 'A', at: at(9, 47), status: 'booked', returnTime: at(11) },
-    ];
+    };
+    const entries = [...BOOKING_LOG_STATUSES]
+      .reverse()
+      .map(status => byStatus[status]);
     saveBookingLog(entries);
     expect(loadBookingLog()).toEqual(entries);
   });
@@ -241,12 +270,26 @@ describe('settings persistence', () => {
 
   // The opposite default to the other two, and so the opposite parse: this one
   // costs a wasted slot when wrongly off, not a booking when wrongly on.
-  it('defaults to avoiding clashes, and only a literal false turns it off', () => {
-    expect(DEFAULT_SETTINGS.avoidOverlaps).toBe(true);
-    kvdb.set(SETTINGS_KEY, { avoidOverlaps: 0 });
-    expect(loadSettings().avoidOverlaps).toBe(true);
-    kvdb.set(SETTINGS_KEY, { avoidOverlaps: false });
+  // Changed in 2026-09 from defaulting on. Both halves have to agree: while
+  // `loadSettings` read this as `!== false`, absence meant on no matter what
+  // DEFAULT_SETTINGS said, so a flip of one alone would have been a no-op that
+  // still read as a deliberate change in the diff.
+  it('defaults to allowing clashes, and only a literal true avoids them', () => {
+    expect(DEFAULT_SETTINGS.avoidOverlaps).toBe(false);
     expect(loadSettings().avoidOverlaps).toBe(false);
+    kvdb.set(SETTINGS_KEY, { avoidOverlaps: 1 });
+    expect(loadSettings().avoidOverlaps).toBe(false);
+    kvdb.set(SETTINGS_KEY, { avoidOverlaps: true });
+    expect(loadSettings().avoidOverlaps).toBe(true);
+  });
+
+  // A phone that has already saved this setting keeps what it saved. The
+  // provider persists settings in an effect that runs on mount, so almost
+  // every existing install has a value stored whether or not anyone chose it
+  // -- and a new default must not reach in and change one.
+  it('leaves an already-stored preference alone', () => {
+    kvdb.set(SETTINGS_KEY, { avoidOverlaps: true });
+    expect(loadSettings().avoidOverlaps).toBe(true);
   });
 
   it('treats a non-boolean dry-run value as off', () => {
@@ -369,6 +412,25 @@ describe("the day's action locks", () => {
     expect(loadLocks()).toEqual(['book:A']);
     saveLocks(OWNER, [], ['book:A']);
     expect(loadLocks()).toEqual(['book:A']);
+  });
+
+  /**
+   * A characterisation guard, not a behaviour change: this passes on the build
+   * before action locks carried a booking date as much as on the one after.
+   *
+   * It is here because that is the whole reason the key could gain a date with
+   * no storage migration a week before a freeze. Keys are opaque strings to
+   * this file and the stored string is the identity -- so a future edit that
+   * starts parsing or rewriting one on the way in would desync the owner-scoped
+   * removal above, and this is what would say so.
+   */
+  it('round-trips a dated key byte for byte', () => {
+    const key = '2026-10-18:book:80010114';
+    saveLocks(OWNER, [key]);
+    expect(loadLocks()).toEqual([key]);
+    expect(holdsLock(key, OWNER)).toBe(true);
+    saveLocks(OWNER, [], [key]);
+    expect(loadLocks()).toEqual([]);
   });
 });
 
