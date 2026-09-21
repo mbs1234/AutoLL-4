@@ -48,7 +48,7 @@ jobs:
     steps:
       # Full history: the point is to compare against a sibling repository, and
       # a shallow clone has no merge base to compare against.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

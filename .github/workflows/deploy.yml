@@ -70,10 +70,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out source (main)
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Check out pinned static site
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # AutoLL-4 owns main; the inherited installer assets remain in the
           # reviewed AutoLL-2 source repository until they are independently
