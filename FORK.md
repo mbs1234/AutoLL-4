@@ -33,16 +33,17 @@ Three separate gaps, worth understanding before touching the build:
 ## How this fork resolves them
 
 `.github/workflows/deploy.yml` builds `main`, overlays the static pages from
-`mbs1234/AutoLL-2@goofy`, rewrites upstream URLs, and deploys to Pages. It is a
-separate public repository, which is why the default `GITHUB_TOKEN` can read it:
+an immutable AutoLL-2 installer revision, rewrites upstream URLs, and deploys
+to Pages. The current installer pin is `a3531c6` (from `goofy`). AutoLL-2 is a
+separate public repository, so the default `GITHUB_TOKEN` can read that commit:
 
 ```
-main (source) ──► npm run build ──► dist/
-goofy  (static) ──► overlay index/start/news/contact/autoloader/icon/css
-                    (never overwriting freshly built bg1.js, bg1.css,
-                     responder.html or their chunks)
-                 ──► brand URLs and labels for mbs1234.github.io/AutoLL-4
-                 ──► GitHub Pages
+main (source) ────────────► npm run build ──► dist/
+installer commit (static) ─► overlay index/start/news/contact/autoloader/icon/css
+                              (never overwriting freshly built bg1.js, bg1.css,
+                               responder.html or their chunks)
+                            ─► brand URLs and labels for mbs1234.github.io/AutoLL-4
+                            ─► GitHub Pages
 ```
 
 ## Booking
@@ -155,13 +156,13 @@ morning would have read this page, found that `npm test` legitimately fails and
 that the suite in question was one of the known-broken ones, and dispatched with
 `skip_checks: true` over a real regression.
 
-| Command             | Scope                   | Status                              |
-| ------------------- | ----------------------- | ----------------------------------- |
-| `npm run test:ci`   | everything, CI reporter | **green** (115 suites / 1455 tests) |
-| `npm test`          | the same tests          | **green**                           |
-| `npm run lint`      |                         | green                               |
-| `npm run typecheck` |                         | green                               |
-| `npm run build`     |                         | green                               |
+| Command | Scope | Status |
+| --- | --- | --- |
+| `npm run test:ci` | everything, CI reporter | **green** (118 suites / 1700 tests) |
+| `npm test` | the same tests | **green** |
+| `npm run lint` | | green |
+| `npm run typecheck` | | green |
+| `npm run build` | | green |
 
 There is one suite and one number. If it is red, something is broken.
 
@@ -267,9 +268,11 @@ Design rules that hold throughout, and that a future change should keep:
   the offer's own itinerary rather than the plans snapshot the tick began with.
 - **Mark attempts before the request goes out.** A timed-out request may have
   succeeded server-side; retrying is the dangerous option.
-- **Only a literal `true` arms anything** when reading persisted flags. The one
-  exception is `avoidOverlaps`, which defaults on and so needs a literal
-  `false` -- the asymmetry follows the cost of guessing wrong.
+- **Only a literal `true` arms anything** when reading persisted flags, with no
+  exceptions. `avoidOverlaps` was one until 2026-09, when it was changed to
+  default off: it read `!== false`, so absence meant on. Both halves had to
+  move together -- flipping the default alone would have changed nothing,
+  because `undefined !== false` is still true.
 - **Resort data is checked, not assumed.** `src/api/resortData.test.ts` scans
   each entry against both halves of the `// <Park> - <Type>` section it is
   declared under, pins the facility ids that went stale in 2026, requires every
@@ -283,6 +286,16 @@ Design rules that hold throughout, and that a future change should keep:
   bundles every `.ts` in that directory.
 - **On/off never persists;** per-attraction arming does. That asymmetry is
   what makes persisted arming safe.
+- **Autopilot is the unattended surface; Time Search is the attended one.**
+  Decided 2026-09-20, when the pocket shield forced the question. Autopilot
+  polls slowly, runs all day, retires an attraction after one refusal and is
+  expected to work with nobody watching. Time Search polls at 600ms, watches a
+  single attraction, retries a refusal, and assumes somebody is looking at it.
+  The shield therefore reports Autopilot and not Time Search: a search is
+  something you are watching, and pocketing the phone in the middle of one is
+  not a case to design for. Anything that blurs the two -- a background Time
+  Search, an attended Autopilot mode -- should be argued against this line
+  first.
 
 A structural limit worth knowing before anyone tries to fix it: background
 operation via a service worker is impossible, not hard. BG1 runs injected into

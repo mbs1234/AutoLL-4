@@ -14,10 +14,14 @@ export const SKIP_TEXT: Record<string, string> = {
   'offer-outside-window': 'the offered time was outside the window',
   'not-an-improvement': 'the time was not enough better to move for',
   'offer-not-an-improvement': 'the offer came back not enough better',
+  'ambiguous-existing-booking':
+    'Disney did not identify which reservation for that attraction was changing',
   'no-eligible-guests': 'nobody was eligible',
   'not-full': 'a slot was free, so it booked instead of swapping',
   'no-worse-reservation': 'nothing held was worth giving up',
   'already-attempted': 'a booking for it was already held or in flight',
+  'unresolved-change':
+    'its last change has no definite result; check Disney Plans',
   'outside-window': 'the advertised time was outside the window',
   'overlaps-plans': 'it clashed with something already booked',
   'not-modifiable': 'Disney marked the reservation unmodifiable',
@@ -32,6 +36,13 @@ export const SKIP_TEXT: Record<string, string> = {
   // exactly the moment the user is asking why nothing is booking.
   'waiting-to-retry':
     'it failed a moment ago and is waiting before trying again',
+  // Also raised by the provider. Action locks carry the booking date they were
+  // taken for; one written by an older version of the app does not, so there is
+  // no honest way to tell which date it meant and it has to block every date
+  // until plans clear it. Worth its own words rather than "already-attempted",
+  // because the answer is to reload the other tabs, not to wait.
+  'stale-lock':
+    'a lock left by an older version of the app is still blocking it',
 };
 
 export const skipText = (reason: string) => SKIP_TEXT[reason] ?? reason;
@@ -60,38 +71,60 @@ export const RECENT_S = 120;
 
 const fmt = (time: ParkTime) => formatTime(time);
 
+function unhandledStatus(status: never): never {
+  throw new Error(`Unhandled booking-log status: ${String(status)}`);
+}
+
 function actionEvent(entry: BookingLogEntry): AutopilotEvent {
   const { name, at, returnTime, fromTime, detail } = entry;
   const forTime = returnTime ? ` for ${fmt(returnTime)}` : '';
-  if (entry.status === 'booked') {
-    return { at, level: 'info', text: `Booked ${name}${forTime}` };
+  const status = entry.status;
+  switch (status) {
+    case 'booked':
+      return { at, level: 'info', text: `Booked ${name}${forTime}` };
+    case 'modified': {
+      const span =
+        fromTime && returnTime
+          ? ` from ${fmt(fromTime)} to ${fmt(returnTime)}`
+          : '';
+      return { at, level: 'info', text: `Moved ${name}${span}` };
+    }
+    case 'swapped': {
+      const gaveUp = entry.replacedName ? ` for ${entry.replacedName}` : '';
+      return { at, level: 'info', text: `Swapped in ${name}${gaveUp}` };
+    }
+    case 'dry-run': {
+      const verb =
+        detail === 'modify'
+          ? 'moved'
+          : detail === 'swap'
+            ? 'swapped in'
+            : 'booked';
+      return {
+        at,
+        level: 'info',
+        text: `Would have ${verb} ${name}${forTime}`,
+      };
+    }
+    case 'skipped': {
+      const why = detail ? `: ${skipText(detail)}` : '';
+      return { at, level: 'info', text: `Skipped ${name}${why}` };
+    }
+    // A dispatched request that never came back is not a failure, and calling
+    // it one is the reading that gets a guest to try again.
+    case 'unknown':
+      return {
+        at,
+        level: 'warn',
+        text: `No answer for ${name} -- check Disney Plans`,
+      };
+    case 'failed': {
+      const why = detail ? `: ${detail}` : '';
+      return { at, level: 'warn', text: `Failed on ${name}${why}` };
+    }
+    default:
+      return unhandledStatus(status);
   }
-  if (entry.status === 'modified') {
-    const span =
-      fromTime && returnTime
-        ? ` from ${fmt(fromTime)} to ${fmt(returnTime)}`
-        : '';
-    return { at, level: 'info', text: `Moved ${name}${span}` };
-  }
-  if (entry.status === 'swapped') {
-    const gaveUp = entry.replacedName ? ` for ${entry.replacedName}` : '';
-    return { at, level: 'info', text: `Swapped in ${name}${gaveUp}` };
-  }
-  if (entry.status === 'dry-run') {
-    const verb =
-      detail === 'modify'
-        ? 'moved'
-        : detail === 'swap'
-          ? 'swapped in'
-          : 'booked';
-    return { at, level: 'info', text: `Would have ${verb} ${name}${forTime}` };
-  }
-  if (entry.status === 'skipped') {
-    const why = detail ? `: ${skipText(detail)}` : '';
-    return { at, level: 'info', text: `Skipped ${name}${why}` };
-  }
-  const why = detail ? `: ${detail}` : '';
-  return { at, level: 'warn', text: `Failed on ${name}${why}` };
 }
 
 function skipEvent(skip: Skip): AutopilotEvent {

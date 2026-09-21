@@ -17,6 +17,26 @@ endorsed by Disney, it can stop working the day Disney changes an endpoint, and
 it comes with no warranty. Keep Disney's own app as the source of truth for what
 you actually hold.
 
+## 1.2.8 — synchronized with AutoLL-3
+
+This release carries AutoLL-3's complete 1.0.0–1.2.8 application line while
+retaining AutoLL-4's independent live sensor provider, iOS application identity,
+storage namespace and Pages origin. It includes the shared booking leases and
+doubt protection, guarded pocket operation, live sound and screen-wake status,
+interrupted-audio recovery, and the monotonic alert deadlines from 1.2.8.
+
+The deliberately different sensor path remains the reason this build exists:
+AutoLL-4 fetches rotating payloads from `bg1.joelface.com/sensor/data` instead
+of shipping AutoLL-3's static `sensor-data.js` runtime module.
+
+It does not mean feature-complete, and it does not mean either sensor mechanism
+will keep working. [ROADMAP.md](ROADMAP.md) lists what remains open.
+
+> **A note on version numbers.** Throughout this README, **v1.0** means
+> [AutoLL v1.0](https://github.com/mbs1234/AutoLL), the frozen predecessor this
+> line descends from — not this release. Where the distinction matters the
+> predecessor is named in full.
+
 ## Install
 
 Open the [setup page](https://mbs1234.github.io/AutoLL-4/) on the phone you will
@@ -251,7 +271,7 @@ selections, one Tier 1 until somebody taps in, one booking per attraction per
 day. This build is faster and more attentive than you are at 7:00:02. That is
 the whole of its advantage.
 
-**Known rough edges, as of 0.5.0:**
+**Known rough edges, as of 1.2.8:**
 
 - The day timeline truncates every target name at 360 px, and its bars are
   14–20 px tall, which is a small tap target.
@@ -264,9 +284,11 @@ These and everything else still outstanding are listed in
 [ROADMAP.md](ROADMAP.md) is the shorter argument about what to do next, and in
 what order, before the December freeze.
 
-**It depends on the AutoLL-2 repository to publish.** The installer pages come
-from that repo at deploy time. AutoLL-2 must stay public for AutoLL-4 to build
-a complete site; the sensor client is now part of this repository's bundle.
+**It depends on the AutoLL-2 repository to publish.** The inherited assets the
+published site is assembled from come from an immutable AutoLL-2 installer
+revision pinned in the deploy workflow. AutoLL-2 must stay public for AutoLL-4
+to build a complete site; the sensor provider itself is bundled from this
+repository and no external runtime module is overlaid.
 
 ## Verifying a build
 
@@ -275,7 +297,17 @@ Every deploy writes
 and `autoll4-files.sha256` into the published site: the two source revisions
 the site is assembled from, plus a SHA-256 of every file served. Point a
 browser at it before a park day and confirm the build on your phone is the one
-the repository says it is.
+the repository says it is — or read the revision from Settings.
+
+A tagged release attaches that same pair of files to GitHub. Re-running the
+deploy workflow against the tag rebuilds the same site, making rollback a
+reviewed artifact rather than a rebuild from memory:
+
+```bash
+gh workflow run deploy.yml --ref autoll4-v1.2.8
+```
+
+The release is not complete until both manifest files are attached.
 
 `main` is protected: a pull request, a passing `check` run, no force-pushes and
 no deletions. It is **not** enforced for administrators, which is the second
@@ -287,7 +319,7 @@ default; the owner can go around it when the situation warrants, and should
 otherwise not.
 
 The deploy gates independently
-on typecheck and the full test suite — 115 suites, 1455 tests — and if either
+on typecheck and the full test suite — 118 suites, 1700 tests — and if either
 fails, the publish is skipped and Pages keeps serving the build already on your
 phone.
 

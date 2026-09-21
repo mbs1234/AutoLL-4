@@ -7,6 +7,7 @@ import ExperiencesProvider from '@/providers/ExperiencesProvider';
 import NavProvider from '@/providers/NavProvider';
 import ParkProvider from '@/providers/ParkProvider';
 import PlansProvider from '@/providers/PlansProvider';
+import PocketShieldProvider from '@/providers/PocketShieldProvider';
 import RebookingProvider from '@/providers/RebookingProvider';
 import TopAutopilotProvider from '@/providers/TopAutopilotProvider';
 
@@ -25,9 +26,18 @@ export default function Merlock() {
               <AutopilotProvider>
                 <TopAutopilotProvider>
                   <RebookingProvider>
-                    <NavProvider>
-                      <Home tabName={tabName} />
-                    </NavProvider>
+                    {/* Above NavProvider, not below. NavProvider renders the
+                        nav stack as its OWN children, and `goTo` replaces a
+                        stack entry wholesale -- a tab change swaps entry 0 for
+                        a bare `<Tabbed>` -- so a provider mounted inside those
+                        children is discarded the first time any screen is
+                        pushed or replaced. Up here the stack renders beneath
+                        it and the shield renders beside it. */}
+                    <PocketShieldProvider>
+                      <NavProvider>
+                        <Home tabName={tabName} />
+                      </NavProvider>
+                    </PocketShieldProvider>
                   </RebookingProvider>
                 </TopAutopilotProvider>
               </AutopilotProvider>

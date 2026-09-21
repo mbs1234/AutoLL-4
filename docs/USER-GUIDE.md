@@ -210,11 +210,10 @@ At the top of Configure, applying to everything:
 |---|---|---|
 | **Dry run** | Off | Rehearsal. Every check runs and the log says what it *would* have done; nothing is booked |
 | **Whole party only** | Off | Refuses to act unless everyone in your party is eligible |
-| **Avoid clashes** | **On** | Refuses a return time that lands on top of something you already hold, dining included |
+| **Avoid clashes** | Off | Refuses a return time that lands on top of something you already hold, dining included |
 
-Avoid clashes is the only one that starts on, and only an explicit off turns it
-off. The other two start off, and only a literal stored `true` turns them on —
-the asymmetry follows the cost of guessing wrong.
+All three safeguards start off. Each turns on only when you explicitly enable
+it, and an existing installation keeps the value it already saved.
 
 Booking by hand only *warns* about an overlap and lets you book anyway. Here it
 skips instead, because there is nobody to warn.
@@ -380,10 +379,48 @@ Turning it on starts a **fresh run**: the session log, skip counts, refusal
 state, per-run locks and the drop-detection baseline are all cleared, and
 anything already available gets re-alerted.
 
+**Check the sound before you rely on it.** Under the notification notices
+Today says whether the alert sound is armed, with a **Test sound** button next
+to it. On iOS the chime is not one channel of three — notifications need the
+page installed to your Home Screen, and vibration is unimplemented — so if the
+sound is not armed during a run, nothing can reach you. While Autopilot is off,
+Today presents this as a neutral pre-flight check rather than a fault. Tap
+**Test sound** before starting, and again after any interruption if you want to
+verify it manually. If you hear two notes, the channel works.
+
 > **Autopilot only runs while the page is open and in front of you.** Lock the
 > phone or switch apps and the browser throttles its timers to minutes. The
-> screen wake lock exists to prevent exactly this, and it is best-effort —
-> where the phone refuses, nothing on screen says so.
+> screen wake lock exists to prevent exactly this, and it is best-effort.
+> Today says **Screen is being kept awake** while it is held and warns
+> **Screen may sleep** when the browser supports the lock but has not granted
+> one. That row appears only while Autopilot is on, because an idle wake lock is
+> expected when no checks are running.
+
+### Put the running phone in your pocket
+
+Once Autopilot is on, tap **Pocket it**. The full-screen guard leaves the
+poller and notifications running while preventing the live glass from reaching
+the controls underneath it. It also blocks page scrolling and pull-to-refresh;
+a reload would turn Autopilot off.
+
+To lift the guard, tap the moving circle three times. The three clean taps must
+land within **10 seconds**. A miss, second finger, drag or cancelled gesture
+clears all progress, and the target moves after each accepted tap.
+
+If the phone reports your fingertip as unusually large, keep using one finger
+and follow the moving circle. Three large-contact taps within **20 seconds**
+lift the guard through its escape path. It allows a little more movement, still
+resets on a miss or second contact, and remembers your phone until the page is
+reloaded so re-pocketing does not make you repeat a separate setup.
+
+The guarded screen is also a status display. It shows the current checking
+pace, the number of targets that can actually act, today's booking count, and a
+line such as **Sound on · Screen held**. A red **No sound** or **Screen may
+sleep** means to lift the guard and check the named channel; the status follows
+the browser directly rather than waiting for the next poll. If Autopilot stops
+or the 4am rollover turns it off, the guard changes to a red warning. Lift it
+and deliberately start a new run; an off or stopped guard is not still
+checking.
 
 ## 13. What the status words mean
 
@@ -830,7 +867,7 @@ further out than tomorrow gets no drop times at all and sits at 45 s.
 | Turning Autopilot on | Clears session log, skip counts, refusal state, locks, cache, passkey status, drop baseline; re-alerts anything available |
 | Turning Autopilot off | Leaves skip counts and the log alone |
 | Page reload | Autopilot off; skip counts lost; log and watch list survive |
-| 4am park-day rollover | Autopilot off; log emptied; skip counts zeroed |
+| 4am park-day rollover | Autopilot off; screen wake lock released; log emptied; skip counts zeroed |
 
 ## Glossary
 

@@ -1,3 +1,4 @@
+import { isBookingLogStatus } from '@/autopilot/bookingStatus';
 import { BookingLogEntry } from '@/contexts/AutopilotContext';
 import { ParkTime, parkDate } from '@/datetime';
 import kvdb from '@/kvdb';
@@ -32,15 +33,6 @@ function parseTime(value?: string): ParkTime | undefined {
   }
 }
 
-const STATUSES = new Set<BookingLogEntry['status']>([
-  'booked',
-  'modified',
-  'swapped',
-  'failed',
-  'skipped',
-  'dry-run',
-]);
-
 /**
  * Today's activity log.
  *
@@ -54,7 +46,7 @@ export function loadBookingLog(): BookingLogEntry[] {
   const stored = kvdb.getDaily<StoredLogEntry[]>(LOG_KEY);
   if (!Array.isArray(stored)) return [];
   return stored.flatMap(e => {
-    if (typeof e?.name !== 'string' || !STATUSES.has(e.status)) return [];
+    if (typeof e?.name !== 'string' || !isBookingLogStatus(e.status)) return [];
     const at = parseTime(e.at);
     if (!at) return [];
     const returnTime = parseTime(e.returnTime);
@@ -199,10 +191,15 @@ export interface AutopilotSettings {
    *
    * The manual booking screen shows an "Overlapping Plans" warning and lets
    * you book anyway; autopilot has nobody to warn, so it skips instead. That
-   * is stricter than the warning it models, which is why it can be turned off
-   * -- but a December day with a Candlelight Processional dining package is
-   * exactly the case where a slot spent on top of dinner is a slot wasted, so
-   * it defaults on.
+   * is stricter than the warning it models, and it is the reason this defaults
+   * OFF: a guard with no way to ask costs a Lightning Lane every time it is
+   * wrong, and it is wrong whenever the clash was one the owner would have
+   * accepted. A dining package on a December evening is the case for turning
+   * it on, and it is a case the owner knows about in advance and can switch on
+   * for that day.
+   *
+   * Changed from defaulting on in 2026-09. Anything already stored still
+   * wins -- a phone that has saved this setting keeps whatever it saved.
    */
   avoidOverlaps: boolean;
 }
@@ -210,7 +207,7 @@ export interface AutopilotSettings {
 export const DEFAULT_SETTINGS: AutopilotSettings = {
   requireWholeParty: false,
   dryRun: false,
-  avoidOverlaps: true,
+  avoidOverlaps: false,
 };
 
 /** Not day-scoped: a preference about the party, not about a visit. */
@@ -221,10 +218,11 @@ export function loadSettings(): AutopilotSettings {
     // Only a literal true enables it; anything else stored reads as off.
     requireWholeParty: stored?.requireWholeParty === true,
     dryRun: stored?.dryRun === true,
-    // Defaults on, so only a literal false turns it off. The asymmetry is
-    // deliberate: the two above cost bookings when wrongly on, this one costs
-    // a wasted slot when wrongly off.
-    avoidOverlaps: stored?.avoidOverlaps !== false,
+    // Read the same way as the two above, which it was not until 2026-09: it
+    // used to be `!== false`, so absence meant on. Both halves have to agree
+    // -- flipping DEFAULT_SETTINGS alone would have changed nothing, because
+    // `undefined !== false` is still true.
+    avoidOverlaps: stored?.avoidOverlaps === true,
   };
 }
 
@@ -233,9 +231,20 @@ export function saveSettings(settings: AutopilotSettings): void {
 }
 
 /**
- * Per-attraction action locks (`AutoBookLedger.attemptedKeys()`), shared so a
+ * Per-attraction action locks (`AutoBookLedger.publishableKeys()`), shared so a
  * second tab or a nested provider (NextLL nests one inside the app's own) can
  * see what another instance has already attempted today.
+ *
+ * Keys are opaque strings here, and deliberately so: they are
+ * `${bookingDate}:${kind}:${experienceId}`, and the date inside one is the
+ * ledger's business rather than this file's. That is what let the key gain a
+ * date without a storage migration -- the stored string is the identity, and
+ * rewriting one on the way in would desync the owner-scoped removal below.
+ *
+ * Note the two dates are different dates. This store is scoped to the *park*
+ * day, as the commits are; the date inside a key is the day the reservation
+ * would be *for*. On a booking morning one day's bucket holds keys for every
+ * park day being booked, which is the point.
  *
  * Day-scoped, like the commits. Written as the union of what is already stored
  * and what this instance holds, so a lock another instance took is never lost
@@ -259,10 +268,10 @@ export function saveSettings(settings: AutopilotSettings): void {
  * Not atomic, and localStorage offers no way to make it so -- two instances can
  * still interleave a read and a write and lose one update. It is instead
  * self-healing: every holder republishes what it owns on each poll, so a lost
- * key is back within a tick rather than gone for the day. A genuinely atomic
- * lease wants the Web Locks API, which is async and would have to reach up
- * through the ledger's synchronous callbacks; that is a change worth making
- * deliberately rather than three months before a trip.
+ * key is back within a tick rather than gone for the day. The separate
+ * Web-Lock-backed operation lease closes the live dispatch race; this store is
+ * the longer-lived record that prevents retries and survives after that lease
+ * is released.
  */
 
 /** What is stored: lock key to the id of the instance that holds it. */

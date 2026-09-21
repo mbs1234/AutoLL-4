@@ -1,12 +1,23 @@
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { LLMP, isLLMP } from '@/api/itinerary';
+import {
+  audioStatus,
+  soundCheck,
+  subscribeAudioStatus,
+} from '@/autopilot/alert';
 import { checklist } from '@/autopilot/checklist';
 import { describeMode } from '@/autopilot/describe';
 import { latestActivity } from '@/autopilot/events';
 import { loadPendingSearch } from '@/autopilot/nextll';
+import { PlanReview, checkPlan, planReview } from '@/autopilot/plancheck';
 import { NO_REFUSALS } from '@/autopilot/refusal';
-import { WatchTarget } from '@/autopilot/watchlist';
+import useQuarantine from '@/autopilot/useQuarantine';
+import {
+  screenAwakeStatus,
+  subscribeScreenAwakeStatus,
+} from '@/autopilot/wakelock';
+import { WatchTarget, targetActs } from '@/autopilot/watchlist';
 import Button from '@/components/Button';
 import Tab from '@/components/Tab';
 import { Time } from '@/components/Time';
@@ -21,10 +32,12 @@ import ExperiencesContext from '@/contexts/ExperiencesContext';
 import NavContext from '@/contexts/NavContext';
 import ParkContext from '@/contexts/ParkContext';
 import PlansContext from '@/contexts/PlansContext';
+import PocketShieldContext from '@/contexts/PocketShieldContext';
 import TabsContext from '@/contexts/TabContext';
 import { parkDate, upcomingTimes } from '@/datetime';
 import { PARTY_IDS_KEY } from '@/hooks/useSavedParty';
 import kvdb from '@/kvdb';
+import { PLAN_CHECK_REVIEW_KEY } from '@/storageNamespace';
 
 import Activity from './Activity';
 import Configure from './Configure';
@@ -37,9 +50,6 @@ import RefreshButton from './RefreshButton';
 import Timeline from './Timeline';
 
 export const TODAY = 'Today';
-
-const acts = (t: WatchTarget) =>
-  !!(t.autoBook || t.autoModify || t.bookThenMove || t.autoSwap);
 
 /**
  * The park day at a glance, and the one switch that matters.
@@ -60,6 +70,7 @@ export default function Today({ ref }: HomeTabProps) {
     enabled,
     setEnabled,
     status,
+    targets,
     targetsHere,
     notifications,
     requestNotifications,
@@ -67,6 +78,8 @@ export default function Today({ ref }: HomeTabProps) {
     lastSkip,
     bookingLog,
     dryRun,
+    requireWholeParty,
+    avoidOverlaps,
     refusals,
     passkeyStatus,
   } = use(AutopilotContext);
@@ -82,9 +95,13 @@ export default function Today({ ref }: HomeTabProps) {
   const { bookingDate } = use(BookingDateContext);
   const { ll } = use(ClientsContext);
   const { goTo } = use(NavContext);
+  const { setShielded } = use(PocketShieldContext);
   const { changeTab } = use(TabsContext);
-  const [planChecked, setPlanChecked] = useState(false);
+  const [reviewedPlan, setReviewedPlan] = useState<PlanReview | undefined>(() =>
+    kvdb.get<PlanReview>(PLAN_CHECK_REVIEW_KEY)
+  );
   const [now, setNow] = useState(() => Date.now());
+  const doubts = useQuarantine();
 
   // The underlying data timestamps only change after successful requests. A
   // lightweight clock lets the wording remain truthful while this tab stays
@@ -113,9 +130,20 @@ export default function Today({ ref }: HomeTabProps) {
   const plan = [...targetsHere].sort(
     (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity)
   );
+  const soundStatus = useSyncExternalStore(
+    subscribeAudioStatus,
+    audioStatus,
+    audioStatus
+  );
+  const awakeStatus = useSyncExternalStore(
+    subscribeScreenAwakeStatus,
+    screenAwakeStatus,
+    screenAwakeStatus
+  );
+  const checkSound = () => void soundCheck();
   // Armed means it will act: a paused target keeps its arming but is counted
   // with the paused, not with the armed.
-  const armed = targetsHere.filter(t => acts(t) && !t.paused).length;
+  const armed = targetsHere.filter(t => targetActs(t) && !t.paused).length;
   const paused = targetsHere.filter(t => t.paused).length;
   // A NextLL search stops when its tab is left; the tab offers to resume it,
   // but only once you are back there. This is the reminder to go back. Matched
@@ -127,14 +155,55 @@ export default function Today({ ref }: HomeTabProps) {
       pending.experienceId)
     : undefined;
   const unknown = unknownExperienceIds?.length ?? 0;
+  const planCheckInput = useMemo(
+    () => ({
+      targets,
+      parkId: park.id,
+      date: bookingDate,
+      experiences,
+      plans,
+      requireWholeParty,
+      avoidOverlaps,
+      dryRun,
+      tierLimitLifted: passkeyStatus === 'unlocked',
+    }),
+    [
+      targets,
+      park.id,
+      bookingDate,
+      experiences,
+      plans,
+      requireWholeParty,
+      avoidOverlaps,
+      dryRun,
+      passkeyStatus,
+    ]
+  );
+  const currentReview = useMemo(() => {
+    const items = checkPlan(planCheckInput);
+    return planReview(planCheckInput, items);
+  }, [planCheckInput]);
   const readiness = checklist({
     // Read-only: mounting useSavedParty here would call ll.setPartyIds while
     // this screen is merely being viewed.
     partySize: kvdb.get<string[]>(PARTY_IDS_KEY)?.length ?? 0,
     targets: targetsHere,
     notifications,
-    planChecked,
+    planReviewed: reviewedPlan?.key === currentReview.key,
+    planBlockers: currentReview.blockers,
   });
+
+  const rememberReview = (review: PlanReview) => {
+    setReviewedPlan(review);
+    try {
+      kvdb.set(PLAN_CHECK_REVIEW_KEY, review);
+    } catch (error) {
+      // The acknowledgement still lasts for this mounted screen when durable
+      // storage is unavailable; it simply will not survive a reload.
+      console.error(error);
+    }
+  };
+  const openPlanCheck = () => goTo(<PlanCheck onReviewed={rememberReview} />);
   // This line describes both data sets, so it reports the older of the two
   // fetches -- and only once *both* have fetched. Filtering the undefined ones
   // out first and taking the minimum of what was left meant one loaded context
@@ -183,6 +252,23 @@ export default function Today({ ref }: HomeTabProps) {
         >
           {enabled ? 'Turn off autopilot' : 'Turn on autopilot'}
         </Button>
+        {/* Its own full-width row rather than a chip among the navigation
+            buttons below. Those four all go somewhere and come back; this one
+            changes what the screen will accept, which is a different kind of
+            action and reads as one at this size. Offered only while the engine
+            is running, because that is the only time the wake lock holds the
+            screen on and the glass stays live in a pocket. */}
+        {enabled && (
+          <div className="mt-2">
+            <Button
+              type="full"
+              color="bg-black text-white"
+              onClick={() => setShielded(true)}
+            >
+              Pocket it
+            </Button>
+          </div>
+        )}
         <LatestEvent event={activity} />
         <AutopilotStatus status={status} refusals={refusals ?? NO_REFUSALS} />
       </div>
@@ -191,13 +277,7 @@ export default function Today({ ref }: HomeTabProps) {
         <Button type="small" onClick={() => goTo(<Configure />)}>
           Configure
         </Button>
-        <Button
-          type="small"
-          onClick={() => {
-            setPlanChecked(true);
-            goTo(<PlanCheck />);
-          }}
-        >
+        <Button type="small" onClick={openPlanCheck}>
           Plan check
         </Button>
         <Button type="small" onClick={() => goTo(<Timeline />)}>
@@ -207,6 +287,30 @@ export default function Today({ ref }: HomeTabProps) {
           Activity
         </Button>
       </div>
+
+      {doubts.length > 0 && (
+        <section
+          className="mt-3 rounded-sm bg-red-100 p-2 text-sm text-red-900"
+          role="alert"
+        >
+          <p className="font-semibold">
+            {doubts.length} unresolved Lightning Lane change
+            {doubts.length === 1 ? ' needs' : 's need'} review.
+          </p>
+          <p className="mt-1">
+            Autopilot has stopped automatically booking, moving, or swapping the
+            affected attractions until Disney Plans confirms what happened or
+            you resolve the protection.
+          </p>
+          <Button
+            type="small"
+            className="mt-2"
+            onClick={() => goTo(<Activity />)}
+          >
+            Review protection
+          </Button>
+        </section>
+      )}
 
       {!isToday && (
         <section
@@ -223,7 +327,7 @@ export default function Today({ ref }: HomeTabProps) {
                 <span>
                   {item.done ? '✓' : '○'} {item.text}
                 </span>
-                {!item.done && (
+                {(!item.done || item.subject === 'plan-check') && (
                   <Button
                     type="small"
                     onClick={() => {
@@ -234,12 +338,15 @@ export default function Today({ ref }: HomeTabProps) {
                       ) {
                         goTo(<Configure />);
                       } else if (item.subject === 'plan-check') {
-                        setPlanChecked(true);
-                        goTo(<PlanCheck />);
+                        openPlanCheck();
                       } else requestNotifications();
                     }}
                   >
-                    {item.subject === 'notifications' ? 'Enable' : 'Open'}
+                    {item.subject === 'notifications'
+                      ? 'Enable'
+                      : item.done
+                        ? 'Review'
+                        : 'Open'}
                   </Button>
                 )}
               </li>
@@ -267,6 +374,45 @@ export default function Today({ ref }: HomeTabProps) {
           This browser has no notification support, so alerts will chime and
           vibrate only. On iOS, notifications require adding this page to your
           Home Screen.
+        </p>
+      )}
+      {/* On iOS Safari the chime is not one channel of three, it is the only
+          one: `Notification` is undefined outside an installed web app and
+          vibration is unimplemented. A context that never unlocked, or that
+          iOS interrupted, is silent and announces nothing -- so the state is
+          shown, and there is a way to hear it on purpose rather than by
+          waiting for a real find and wondering. */}
+      {soundStatus !== 'unsupported' && (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span
+            className={`text-sm ${
+              soundStatus === 'armed' || !enabled
+                ? 'text-gray-600'
+                : 'font-semibold text-red-700'
+            }`}
+          >
+            {soundStatus === 'armed'
+              ? 'Alert sound is armed.'
+              : enabled
+                ? 'Alert sound is not armed, so alerts would be silent.'
+                : 'Test alert sound before starting Autopilot.'}
+          </span>
+          <Button type="small" onClick={checkSound}>
+            Test sound
+          </Button>
+        </div>
+      )}
+      {enabled && awakeStatus !== 'unsupported' && (
+        <p
+          className={`mt-3 text-sm ${
+            awakeStatus === 'held'
+              ? 'text-gray-600'
+              : 'font-semibold text-red-700'
+          }`}
+        >
+          {awakeStatus === 'held'
+            ? 'Screen is being kept awake.'
+            : 'Screen may sleep, which can slow or pause checks.'}
         </p>
       )}
       {unknown > 0 && (
