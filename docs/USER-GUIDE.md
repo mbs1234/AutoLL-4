@@ -880,6 +880,12 @@ still displays here.
 
 **Individual Lightning Lane is not booked.** Only Multi Pass.
 
+**It cannot protect its own storage.** Everything AutoLL-4 keeps — your party,
+your watch list, and what it has learned about drops — is stored by your browser
+for Disney's website. Safari, on an iPhone, iPad or Mac, deletes a website's
+stored data after about a week of Safari use without a visit to that site, and
+nothing warns you when it does. **Between trips, open AutoLL-4 at least once a
+week**, or it may start empty next time.
 **Rough edges, as of 1.2.8.** Known, recorded, and not fixed yet:
 
 - The day timeline truncates every target name at 360 px, and its bars are
@@ -965,7 +971,7 @@ definite answer from Disney.
 
 ## Related documents
 
-- [README.md](../README.md) — what this build does that v1.0 did not
+- [README.md](../README.md) — what this build is, and how to install it
 - [ROADMAP.md](../ROADMAP.md) — what to do next, and in what order
 - [docs/FUTURE.md](FUTURE.md) — everything outstanding, with what each would cost
 - [FORK.md](../FORK.md) — why a plain upstream build does not run

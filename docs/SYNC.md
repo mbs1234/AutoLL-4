@@ -25,6 +25,23 @@ same rate limiter is per-page, so two live engines contend for the same
 reservations and the same five requests a second. Put that in the park-day
 routine rather than trusting yourself to remember it at 7am.
 
+## The rule
+
+**Once a change is verified on AutoLL-3 and the owner is happy with it, it ports
+to AutoLL-4 — always.** Stated by the owner on 2026-09-23. The two builds stay in
+step in everything except what genuinely differs between them: the sensor path,
+each build's own name and storage namespace, and the few settings recorded below.
+
+That rule has one consequence the rest of this document now depends on: **port
+by `git merge`, never by hand.** On 2026-09-21 two AutoLL-3 documentation
+changes (#69, #70) reached this build as hand-made copies (#19, #20). They were
+correct, and git could not see them: it still listed both as unmerged, the
+weekly drift check below would have gone red for work that was already here, and
+the next sync would have tried to apply both again on top of their copies. A
+hand-made port is a second copy of the work that git cannot recognise as the
+first. Adapt a change *inside* the merge that brings it, as the merge of
+2026-09-23 does, and git's record stays true.
+
 ## Syncing is a merge, not a cherry-pick
 
 This document originally prescribed `git cherry-pick`, one commit at a time.
@@ -74,7 +91,7 @@ What is left that genuinely differs once it has landed:
 | the sensor files | deliberately and permanently — see below |
 | `src/hooks/useDataLoader.tsx` | names `SensorDataUnavailable`, distinguishing the helper service being down from Disney refusing |
 | `.github/workflows/deploy.yml` | the sensor overlay, and `PAGES_ORIGIN`, which is a second spelling of `PAGES_BASE` for files that never pass through the bundler |
-| the docs | `README.md`, `FORK.md`, this file, the user guide, `SECURITY.md` |
+| the docs, **in part** | Kept in step like the code, except where this build genuinely differs: `README.md` and `docs/RELEASING.md` are this build's own; the user guide, the roadmap and `FUTURE.md` take AutoLL-3's content with this build's name, and are *ported* where this build behaves differently — it also runs in desktop browsers — rather than renamed. `FORK.md`, this file and `SECURITY.md` are this build's own |
 
 Everything else should be identical. When it is not, one of them is wrong, and
 the question is which side is right rather than which side is newer.
@@ -134,6 +151,20 @@ git diff autoll3/main -- src/api/ .github/workflows/deploy.yml
 changed together are one build: if a bad commit reaches both at once, the
 fallback was worth nothing, which is the exact scenario two repositories exist
 to insure against. Deliberate lag is a feature here, not sloppiness.
+
+**A change with no code in it may port the same day.** The rule exists so a bad
+commit cannot reach both builds at once, and a commit that changes nothing under
+`src/` cannot make the fallback worse. The December replan (#71) ported the day
+it deployed on that basis. Check the "no code" claim rather than assume it —
+`git diff --name-only HEAD..autoll3/main -- src/` should print nothing — and
+remember that touching the guide's HTML still rebuilds and republishes this
+build's bundle, with the same code and a new embedded revision.
+
+**Resolve a documentation conflict by reading it, not by taking a side.** And
+read the files git merged *without* a conflict too: on 2026-09-23 `FUTURE.md`
+merged cleanly and had silently picked up an "AutoLL-3" where this build means
+itself. The sensor section below says the same about `src/api/`; it is equally
+true of prose.
 
 The one thing that does go wrong is forgetting there was anything to merge
 until the morning a park day needs the fallback. That is what
