@@ -31,7 +31,7 @@ Two things are true of the whole app and worth reading first:
 # Part 1 — Before the trip
 
 Do all of this at home, days or weeks ahead. The mistakes that cost you a
-December morning get made in November.
+park morning get made weeks before it.
 
 ## 1. Install it
 
@@ -843,7 +843,7 @@ forgetting it leaves a pass unprotected.
 
 So that reservation is **held**, and the hold is visible. Activity and Plan
 Check both list it under a red panel, naming the attraction and what the change
-was trying to do — "Move Haunted Mansion from 7:15 PM to 11:40 AM on December
+was trying to do — "Move Haunted Mansion from 7:15 PM to 11:40 AM on March
 5". Nothing touches that pass until Disney's own itinerary shows the exact
 result the request asked for.
 
@@ -880,13 +880,22 @@ still displays here.
 
 **Individual Lightning Lane is not booked.** Only Multi Pass.
 
-**It cannot protect its own storage.** Everything AutoLL-4 keeps — your party,
-your watch list, and what it has learned about drops — is stored by your browser
-for Disney's website. Safari, on an iPhone, iPad or Mac, deletes a website's
-stored data after about a week of Safari use without a visit to that site, and
-nothing warns you when it does. **Between trips, open AutoLL-4 at least once a
-week**, or it may start empty next time.
-**Rough edges, as of 1.2.8.** Known, recorded, and not fixed yet:
+        drops — is stored by your browser for Disney's website. Safari, on an
+        iPhone, iPad or Mac, deletes a website's stored data after about a week
+        of Safari use without a visit to that site, and nothing warns you when it
+        does.
+        <strong>Back it up:</strong> the gear at the bottom right, then
+        <span class="ui">Backup and Restore</span>, then
+        <span class="ui">Back up now</span>. It saves one file — your plan, your
+        party and every drop the learner has seen. On an iPhone it opens the
+        share sheet, to save to Files or AirDrop to a computer; on a computer
+        the browser may download it instead. Your Disney sign-in is never in it.
+        The same menu says how long it has been since the last one.
+        <strong>Between trips, open AutoLL-4 at least once a week</strong> as
+        well, or it may start empty next time.
+      </p>
+      <p>
+        <strong>Rough edges, as of 1.3.0.</strong> Known, recorded, and not
 
 - The day timeline truncates every target name at 360 px, and its bars are
   14–20 px tall, which is a small tap target.
