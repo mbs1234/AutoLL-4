@@ -74,7 +74,7 @@ before it.
 | **Booking morning → check-in** | The gap before the trip | Fixes from the booking morning; item 4 if not already in |
 | **The rehearsal** | Its park days | Watch, record, and let it fail usefully |
 | **Within a week of it** | **Export** (item 12) — or at least open the app | Before iOS's seven-day storage cap can take the rehearsal's learning |
-| **Between the trips** | Build the main trip on what the rehearsal showed | Retrospective; item 15; item 6 if the picker reading said so; item 7 once the holiday overlays start |
+| **Between the trips** | Build the main trip on what the rehearsal showed | Retrospective; item 15; item 6 if the picker reading said so; item 7 once the holiday overlays start; item 17 |
 | **The three weeks before the main trip** | Its days enter the picker, one a day | Build the main plan |
 | **A week before its booking morning** | Last change | Freeze from then through the trip |
 | **Its booking morning, 7:00** | The booking morning that matters | Every day of the stay, in one morning, from home |
@@ -221,16 +221,20 @@ end of this file.
 
 ### 12. Back up the plan and what the learner has seen — _small, then medium_
 
-> **Status, 2026-09-23 — export built, restore next.** 1.3.0 adds **Backup and
-> Restore** to the Settings menu. It opens its own screen, because the menu runs
+> **Status, 2026-09-23 — built: export in 1.3.0, restore in 1.4.0.** **Backup
+> and Restore** in the Settings menu opens its own screen, because the menu runs
 > its items fifty milliseconds after closing and iOS opens the share sheet only
 > from a tap. **Back up now** shares one versioned JSON file, and a grey line in
-> the menu says how long it has been since the last backup. Enumeration was
-> added to `kvdb` itself (`kvdb.entries()`), so the namespace filter lives at the
-> storage boundary and `storageNamespace.test.ts`'s rule against direct storage
-> access still holds. The owner chose **replace** for restoring the plan.
-> Restore — the narrow half — is the next step. Export ports to AutoLL-4 by merge
-> now, at the owner's request, rather than waiting for restore.
+> the menu says how long it has been since the last backup; enumeration lives in
+> `kvdb` itself (`kvdb.entries()`), so the namespace filter sits at the storage
+> boundary. **Restore** shows what a picked file holds before it writes
+> anything, then writes an allowlist of seven keys: the plan is **replaced**, the
+> owner's choice; the learning is **merged** under `observe.ts`'s own caps; and
+> nothing else is written, including any key added later. A failed write puts
+> every touched key back. It refuses while any engine runs — a Time Search under
+> a pushed screen included, through `src/autopilot/running.ts` — and ends in a
+> reload, because every open screen still holds the plan it loaded. Left: the
+> on-phone round trip under *Done means*, and the port to AutoLL-4 by merge.
 
 **Why.** Theme 1. Everything lives in `localStorage` on Disney's origin, iOS
 deletes it after about a week of Safari use without a visit, and there is no way to
@@ -355,6 +359,44 @@ item 12's backup: "Tiana's dropped at 9:44, not 9:47." "The shield lifted in my
 pocket."
 
 **Risk.** Storage growth on a phone. Cap it, as `observe.ts` caps its events.
+
+### 17. Notice a new build, and move to it — _medium_
+
+**Why.** After a deploy the phone keeps running the old bundle. GitHub Pages
+sends `Cache-Control: max-age=600`, and the bookmarklet and the userscript load
+`bg1.js` from one fixed URL, so Safari reuses its copy for up to ten minutes —
+and an app that is already open never looks again at all. 1.4.0 was live and
+byte-verified while the phone still ran 1.3.0. On a park day that gap is the
+difference between an emergency fix reaching the pocket and not.
+
+**What.** The owner's choice (2026-09-23): reload on its own when it finds a new
+version. Check the served manifest — `autoll4-release.json`, fetched with
+`cache: 'no-store'`; Pages sends `access-control-allow-origin: *` — whenever the
+app comes to the foreground, and every fifteen minutes while it is open. When
+its `sourceRevision` is not this bundle's `BUILD_REV`, move to the new build **in
+place**: do what the bookmarklet does, with the revision in the bundle's URL so
+no cache can serve the old one. Not `location.reload()` — for the bookmarklet
+that reloads Disney's page and leaves the app off until someone taps the
+bookmark again. The bookmarklet itself never needs to change: it is a fixed URL
+and one `script` tag, byte-identical across releases.
+
+**Risk.** Moving mid-run. Never while any engine runs (`anyRunning()`, from item
+12), while Pocket mode is up, or while a restore's reload notice is showing;
+say instead that a new version is ready and loads once Autopilot is off, and
+offer a tap. Second, version skew: the chunks (`wdw.js` among them) have fixed
+names and are cached apart from `bg1.js`, so a fresh bundle can load a stale
+chunk — already possible inside today's ten-minute window. Content-hashed chunk
+names close that, and change what `autoll4-files.sha256` lists. Third, Disney's
+page could refuse the fetch; then the check fails quietly and nothing changes.
+
+**Done means.** With the manifest naming another revision: with nothing running,
+the loader runs with that revision in the bundle's URL; with an engine running,
+it does not, and the screen says a new version is waiting. On the phone: deploy,
+leave the app open and idle, and watch the footer's revision change within
+fifteen minutes, without a tap.
+
+**When.** Between the trips. It changes how the app loads, which is the wrong
+thing to change in the weeks before a freeze.
 
 ---
 
