@@ -6,7 +6,7 @@ was cleared (§1), and again on 2026-09-15, when every decision in §4 was
 answered and a Time Search was given precedence over the engine — decided and
 built the same day, so it is not listed below. Revised again on 2026-09-23, when
 the ordering moved to `ROADMAP.md`'s calendar and five items were added
-(§2.8–§2.11 and §3.13).
+(§2.8–§2.11 and §3.13), and a sixth the same day (§2.12).
 
 This is the standing list of what is not done: the items still open from
 `PLAN.md` and `UX-PLAN.md`, the
@@ -34,9 +34,10 @@ usable today; everything here makes it better, and nothing here is required.
 If only four things get done before the main trip, these — in `ROADMAP.md`'s order,
 which is now the one to follow:
 
-1. **Back up the plan and what the learner has seen** (§3.13, ROADMAP item 12).
-   Everything lives in one browser store on the phone, iOS deletes that store
-   after about a week without a visit, and nothing gets any of it off the phone.
+1. **Back up the plan and what the learner has seen** (§3.13, ROADMAP item 12) —
+   built: export in 1.3.0, restore in 1.4.0. Everything lives in one browser
+   store on the phone, iOS deletes that store after about a week without a visit,
+   and until then nothing got any of it off the phone.
 2. **Warn before a held pass lapses** (§3.1's warning half, ROADMAP item 3) — the
    largest recoverable loss the tool still does not catch, and now an alert that
    reaches a pocket.
@@ -191,6 +192,18 @@ before it.
 _Size:_ small, optional. A note stamped with park time and the current park and
 date, kept beside the activity log and carried in §3.13's backup.
 
+### 2.12 A new build waits for a reload — ROADMAP item 17
+
+After a deploy the phone keeps running the old bundle for up to ten minutes —
+Pages' `max-age=600` on a fixed `bg1.js` URL — and an app already open never
+checks at all. The owner wants it to reload on its own when it finds a new
+version: in place, because a page reload drops an app the bookmarklet loaded,
+and never while anything is running.
+
+_Size:_ medium. _Where:_ a small module beside `src/autopilot/running.ts`, and
+the loader's own steps. _Risk:_ reloading mid-run; stale chunks, which
+content-hashed chunk names fix.
+
 ---
 
 ## 3. Booking intelligence
@@ -342,6 +355,8 @@ filler. If it is built, it has to be bounded to the pre-redemption window and
 to attractions you marked as acceptable.
 
 ### 3.13 What the learner learns does not survive to the next trip — ROADMAP item 12
+
+**Built** — export in 1.3.0 and restore in 1.4.0. ROADMAP item 12 records how.
 
 Every observation `observe.ts` records — and the plan, the party and the booking
 log with it — lives in `localStorage` on Disney's origin, and nothing in `src/`

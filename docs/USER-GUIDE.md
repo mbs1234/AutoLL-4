@@ -102,9 +102,10 @@ Selection**. Choose "Only book for selected guests" and tick the people you
 actually want, then **Save**. After that, anyone outside your saved party is
 shown on booking screens under Ineligible Guests marked `NOT IN PARTY`.
 
-The same menu carries **Log Out**, a **Session-only login** switch for a
-borrowed phone (the token then lives only as long as the tab), a `Session:` line
-telling you whether you are signed in, and the build name.
+The same menu carries **Backup and Restore** (see *It cannot protect its own
+storage*, below), **Log Out**, a **Session-only login** switch for a borrowed
+phone (the token then lives only as long as the tab), a `Session:` line telling
+you whether you are signed in, a `Last backup:` line, and the build name.
 
 > The Party Selection screen says the cap is 12 guests. At Walt Disney World it
 > is actually 20 — the 12 is left over in shared code. In the harness screenshot
@@ -880,22 +881,26 @@ still displays here.
 
 **Individual Lightning Lane is not booked.** Only Multi Pass.
 
-        drops — is stored by your browser for Disney's website. Safari, on an
-        iPhone, iPad or Mac, deletes a website's stored data after about a week
-        of Safari use without a visit to that site, and nothing warns you when it
-        does.
-        <strong>Back it up:</strong> the gear at the bottom right, then
-        <span class="ui">Backup and Restore</span>, then
-        <span class="ui">Back up now</span>. It saves one file — your plan, your
-        party and every drop the learner has seen. On an iPhone it opens the
-        share sheet, to save to Files or AirDrop to a computer; on a computer
-        the browser may download it instead. Your Disney sign-in is never in it.
-        The same menu says how long it has been since the last one.
-        <strong>Between trips, open AutoLL-4 at least once a week</strong> as
-        well, or it may start empty next time.
-      </p>
-      <p>
-        <strong>Rough edges, as of 1.3.0.</strong> Known, recorded, and not
+**It cannot protect its own storage.** Everything AutoLL-4 keeps — your party,
+your watch list, and what it has learned about drops — is stored by your browser
+for Disney's website. Safari, on an iPhone, iPad or Mac, deletes a website's
+stored data after about a week of Safari use without a visit to that site, and
+nothing warns you when it does.
+**Back it up:** the gear at the bottom right, then **Backup and Restore**, then
+**Back up now**. It saves one file — your plan, your party and every drop the
+learner has seen. On an iPhone it opens the share sheet, to save to Files or
+AirDrop to a computer; on a computer the browser may download it instead. Your
+Disney sign-in is never in it. The same menu says how long it has been since the
+last one. **To put it back** — on a new phone or computer, or after the browser
+has emptied this one — turn Autopilot off, open **Backup and Restore**, then
+**Choose a backup file**. It shows what the file holds before it changes
+anything, and **Replace this phone’s plan** swaps in the file’s watch lists,
+party and starred attractions and adds the file’s drops to what this one has
+seen. Your sign-in and settings, dry run included, stay as they are. Reload the
+page afterwards. **Between trips, open AutoLL-4 at least once a week** as well,
+or it may start empty next time.
+
+**Rough edges, as of 1.4.0.** Known, recorded, and not fixed yet:
 
 - The day timeline truncates every target name at 360 px, and its bars are
   14–20 px tall, which is a small tap target.
