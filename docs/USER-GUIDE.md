@@ -123,6 +123,12 @@ at Magic Kingdom is inert on Thursday at Epcot. That is deliberate: on Tuesday,
 nothing Epcot-shaped can spend an action. But it also means a plan can look
 empty simply because you are looking at the wrong day.
 
+Autopilot follows those two controls too, on every tab. So while it runs with
+something armed, switching park or day — or tapping **Modify** on a pass
+for another park or day — asks first: "It is watching 3 armed at Magic Kingdom for today…"
+**Stay** keeps it where it is; **Switch** points it at the new park or day, and
+the plan left behind waits until you switch back.
+
 The date picker offers 22 days as an upper bound. Most of those are not
 bookable for most guests; requests for them simply fail.
 
@@ -643,9 +649,11 @@ On a Multi Pass's details screen:
 - **Cancel** — remove chosen guests, or the whole reservation when you remove
   everyone
 
-> **Cancelling has no "are you sure" step**, and if the request fails the app
-> still backs out and redraws the party as though the guests had gone. Reopen
-> the booking from Plans to see what really happened.
+> **Cancelling has no "are you sure" step.** If Disney refuses the cancel, the
+> screen stays where it is with the error, and the party is unchanged. If Disney
+> does not answer at all, it says so — the cancel may or may not have gone
+> through — and points to Plans. Booking and modifying by hand do the same: a
+> request with no answer is never shown as a plain failure beside a live button.
 
 > Plans mirrors Disney; it is not live. A pass cancelled on another phone will
 > not disappear until you refresh.
@@ -721,9 +729,17 @@ party holds the same ride at another time.
 
 This is the one screen that can do what Autopilot structurally cannot. Autopilot
 sees only the single earliest time the tip board advertises, so it can only pull
-a pass **earlier**. Time Search opens a real modify offer and reads the **whole
-return-time grid** behind it, so it can walk a pass in either direction toward a
-time you type in — including **later on purpose**, for a dinner reservation.
+a pass **earlier**. Time Search opens a real modify offer and reads the
+**return-time grid** behind it, so it can walk a pass in either direction toward
+a time you type in — including **later on purpose**, for a dinner reservation.
+
+**The grid is Disney's list, and it leaves times out.** It omits any time that
+would overlap another of your plans, though Disney books such a time when asked
+for it by name — which is how the manual screen's **Show all** reaches it. So
+Time Search asks by name as well: for the tip board's earliest when finding the
+earliest, and for your time when aiming. With **Avoid clashes** on, it skips any
+time that overlaps another plan, exactly as Autopilot does; off, the default, it
+takes an overlapping time the same way Show all lets you.
 
 - **Find the earliest** chases the soonest slot.
 - **Or aim for** + **Aim for this time** walks toward a named time, accepting
@@ -910,7 +926,7 @@ seen. Your sign-in and settings, dry run included, stay as they are. Reload the
 page afterwards. **Between trips, open AutoLL-4 at least once a week** as well,
 or it may start empty next time.
 
-**Rough edges, as of 1.4.1.** Known, recorded, and not fixed yet:
+**Rough edges, as of 1.4.3.** Known, recorded, and not fixed yet:
 
 - The day timeline truncates every target name at 360 px, and its bars are
   14–20 px tall, which is a small tap target.

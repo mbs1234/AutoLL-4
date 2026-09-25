@@ -1129,6 +1129,60 @@ required.
 Kept as records of the defect and the acceptance criteria each one closed.
 Their line citations describe the tree before the fix.
 
+### 20. Stop the screens saying what is not so — _completed in 1.4.3_
+
+Found by a usability review of the whole app. Six defects, each one a screen
+telling the person holding the phone something untrue, or moving something they
+did not ask to move.
+
+- **A cancel Disney refused looked like one that worked.** Cancel Guests backed
+  out and redrew the party whatever the answer. It now moves on only after a
+  cancel that went through; a refusal leaves the screen, and the party, as they
+  were, with the error.
+- **A request Disney never answered read as an ordinary failure, beside a live
+  button.** A booking, change or cancel that timed out or met a server error may
+  have gone through, and a second tap could book twice. `outcomeIsUnknown`
+  (`src/autopilot/autobook.ts`) marks a request that left and came back with no
+  answer, or a 5xx; the booking, change and cancel screens then stop offering
+  their button and say so, with a way to Plans. A booking
+  whose trim of unselected guests failed was reported as a failed booking; the
+  booking now shows, with a warning naming who is still on it.
+- **Looking at another park re-aimed a running Autopilot.** The park and date
+  are one setting for the whole app and the engine follows them, so browsing
+  another park's times pointed Autopilot where nothing was armed. While it runs
+  with something armed, the park picker, the date picker and Modify on a pass
+  for another park or day now ask first (`useScopeGuard`).
+- **The tab bar jumped when Autopilot started**, because its status row sat
+  below the tabs and pushed them up. It now sits above them; the tabs are always
+  the bottom row.
+- **The settings gear covered the end of the NextLL tab.** It was laid over the
+  tab row; it is now part of it.
+- **The tip board rebuilt its list on every check, and the Sort menu closed
+  itself.** Both were components declared inside a render, so each check gave
+  React a new component type to mount. They are render functions now.
+
+### 19. Reach the times Disney's grid leaves out — _completed in 1.4.2_
+
+Found from a friend's report. Holding Big Thunder at 2:50 beside a pass for
+another ride at 2:05, the manual screen's **Show all** found and booked 1:40,
+while NextLL's Time Search left the reservation at 2:50. Nothing in the search
+refused the overlap: it never saw 1:40. It chose only from `ll.times()`, and
+Disney's list omits a time that would overlap the party's other plans. Nor did
+it pass the tip board's earliest into its offer, the one route by which the
+engine reaches such a time.
+
+**Shipped.** `ll.offer()` takes a `targetTime`, asked for by name in the
+request and walked toward by the existing correction. Time Search names one --
+the tip board's earliest, from a board showing this reservation's day, or the
+time aimed at -- and counts the offer's own time as a candidate beside the
+grid, taking it as quoted without a second fulfil. A named time the offer did
+not land on is not asked for again that run, but stays eligible when the grid
+lists it; only `changeOfferTime` refusals bar a time. With Avoid clashes on,
+every candidate goes through the engine's own `overlappingPlans`, so the search
+and Autopilot refuse the same times; off, the default, it allows what Show all
+allows. A swap is left to its grid, as before. Harness scenario: "Time Search: a
+sooner time the grid leaves out".
+
 ### 18. Move the reservation that was asked for, when two people hold one attraction — _completed in 1.4.1_
 
 Found from a friend's report. One person held an attraction at 9:10 and another
