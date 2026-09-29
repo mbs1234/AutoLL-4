@@ -15,7 +15,7 @@ import {
   refusalCount,
   resetPushback,
 } from './pushback';
-import { SearchGoal } from './timesearch';
+import { NothingOpen, SearchGoal } from './timesearch';
 import useTimeSearch, {
   CYCLE_MS,
   MAX_BARREN_CYCLES,
@@ -116,7 +116,7 @@ function setup({
   /** Handed the live held time, since the default fake reads it too. */
   createOffer?: (
     held: () => ParkTime
-  ) => jest.Mock<Promise<Offer<LLMP>>, [LLMP, ParkTime?]>;
+  ) => jest.Mock<Promise<Offer<LLMP>>, [LLMP, ParkTime?, string?]>;
   hint?: TimeSearchDeps['hint'];
   clashes?: TimeSearchDeps['clashes'];
 } = {}) {
@@ -230,6 +230,52 @@ describe('useTimeSearch', () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.pending).toBeDefined());
     expect(deps.commit).not.toHaveBeenCalled();
+  });
+
+  // A swap that may take any of several attractions: the question says which
+  // came up, and accepting it re-makes that attraction's offer, not whichever
+  // is open by then.
+  describe('over several attractions', () => {
+    const ride = { id: '80010208', name: 'Haunted Mansion' };
+    const offersRide = (held: () => ParkTime) =>
+      jest.fn(
+        async (b: LLMP, _t?: ParkTime, _e?: string): Promise<Offer<LLMP>> => {
+          void _t;
+          void _e;
+          return {
+            ...offerAt(held(), b.start.time),
+            experience: ride,
+          } as unknown as Offer<LLMP>;
+        }
+      );
+
+    it('says which attraction the question is about', async () => {
+      const { result } = setup({
+        goal: { kind: 'replace' },
+        confirmEveryMove: true,
+        createOffer: offersRide,
+      });
+      act(() => result.current.start());
+      await waitFor(() => expect(result.current.pending).toBeDefined());
+      expect(result.current.ride).toEqual(ride);
+    });
+
+    it('re-makes the offer for that attraction when it is accepted', async () => {
+      const { result, deps } = setup({
+        goal: { kind: 'replace' },
+        confirmEveryMove: true,
+        stopAfterConfirmedMove: true,
+        createOffer: offersRide,
+      });
+      act(() => result.current.start());
+      await waitFor(() => expect(result.current.pending).toBeDefined());
+      const calls = (deps.createOffer as jest.Mock).mock.calls;
+      expect(calls[0]?.[2]).toBeUndefined();
+      act(() => result.current.accept());
+      await runCycles(3);
+      expect(calls.some(call => call[2] === ride.id)).toBe(true);
+      expect(result.current.stop).toBe('goal-met');
+    });
   });
 
   it('stops after Plans confirms a one-shot replacement', async () => {
@@ -1327,4 +1373,40 @@ describe('useTimeSearch when Disney pushes back', () => {
     expect(result.current.running).toBe(false);
     expect(result.current.stop).toBe('session');
   });
+
+  // A sold-out ride answers every ask with no offer at all. Each of those
+  // checks still spends an offer request, and uncounted, the search never
+  // stopped.
+  it.each([
+    [
+      'no offer',
+      () => new OfferError({ eligible: [], ineligible: [] } as never),
+    ],
+    ['a 410', () => new RequestError({ ok: false, status: 410, data: {} })],
+    // A swap over several attractions found none of them open, and asked
+    // Disney nothing.
+    ['nothing open', () => new NothingOpen()],
+  ])(
+    'ends a long search that gets %s every time as a session',
+    async (_, failure) => {
+      const { result } = setup({
+        createOffer: () =>
+          jest.fn(
+            async (_held: LLMP, _time?: ParkTime): Promise<Offer<LLMP>> => {
+              void _held;
+              void _time;
+              throw failure();
+            }
+          ),
+      });
+      act(() => result.current.start());
+      // The first check runs as it starts: this is 199 of them, and not
+      // yet the end -- nor did five of them read as five failures.
+      await runCycles(MAX_BARREN_CYCLES - 2);
+      expect(result.current.running).toBe(true);
+      await runCycles(3);
+      expect(result.current.running).toBe(false);
+      expect(result.current.stop).toBe('session');
+    }
+  );
 });
