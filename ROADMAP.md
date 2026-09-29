@@ -1129,6 +1129,56 @@ required.
 Kept as records of the defect and the acceptance criteria each one closed.
 Their line citations describe the tree before the fix.
 
+### 25. Change attraction into whichever of several rides opens first — _completed in 1.5.0_
+
+A friend's request from a park day: change a held Small World into Big Thunder
+Mountain **or** Haunted Mansion, whichever could be had. Change attraction took
+one ride, and asked Disney for a change offer for it on every check, open or
+not. Autopilot's Swap in could not stand in: it acts only when all three slots
+are full, and chooses which pass to give up itself.
+
+**Shipped**, to the owner's choices (whichever opens first; no ranking; no
+"not this one"):
+
+- **Up to three attractions** (`MAX_RIDES`). Once one is chosen, an "Or" choice
+  appears for the next.
+- **Each check reads the tip board once**, and asks Disney for an offer only
+  for a chosen ride the board shows open, the one opening soonest when several
+  are (`rideToAsk` in `SwapAttractionSearch`). The board is one request for
+  every ride and carries no sensor payload; each offer does. So three rides
+  cost no more offer requests than one, and none are sent while nothing is
+  open: `createOffer` throws `NothingOpen`, which counts toward the session
+  like a check with no offer. A board read in the last check (by Autopilot,
+  say) is used as it is.
+- A board for another day, or one listing none of the rides, says nothing
+  about the pass's day, so the rides take turns, one offer per check, as a
+  search over one ride always did.
+- A ride Disney made no offer for is left out for five checks
+  (`OFFER_COOLDOWN_MS`), so a board that shows it open cannot take every
+  request.
+- The question names the ride that came up, and accepting it re-makes that
+  ride's offer, not whichever is open by then (`useTimeSearch` passes the
+  question's attraction to `createOffer`, and records it as `ride`). The
+  commit names the ride gained from the offer it commits.
+- Every chosen ride is claimed with the reservation, so Autopilot does not book
+  one of them while this search changes into it.
+
+### 24. Count a check with no offer toward a search's session — _completed in 1.4.7_
+
+Found while planning an "either of these" Change attraction. Time Search and
+Change attraction stop after `MAX_BARREN_CYCLES` (200) checks with nothing to
+take, but only a check whose offer came back with nothing better counted. When
+Disney had no offer at all, `ll.offer` threw `OfferError` (or a 410 came back),
+the search rightly treated it as no fault, and did not count it either. A
+throwaway test ran 205 such checks and the search was still running. So a Change
+attraction aimed at a sold-out ride ran until Stop was tapped, spending an offer
+request every 6 s, and the guide's "Both stop after 200 checks" was true only
+when offers came back.
+
+**Shipped.** A check with no offer at all counts toward the same session
+(`useTimeSearch`, the `run()` catch). It still spends nothing of the failure
+budget. Tests for no offer and for a 410 fail on 1.4.6's code.
+
 ### 23. Stop a NextLL search once it has what was asked for — _completed in 1.4.6_
 
 Found from the same park day as item 22. NextLL's "Book a new Lightning Lane"
