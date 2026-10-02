@@ -207,8 +207,8 @@ gives up.
 
 Inside the card, at the bottom. Removal is inside the card on purpose, so a
 mis-tap on the list cannot lose a window and a rank. An **Undo** strip appears
-for **8 seconds** and remembers only the most recent removal — remove a second
-attraction and the first one's undo is gone.
+for **8 seconds** after the last removal, with an Undo for each attraction
+removed while it shows.
 
 ### The three safeguards
 
@@ -264,7 +264,9 @@ Reviews ("Review:"):
 - More than one Tier 1 target armed to book
 - Whole party only is off / Avoid clashes is off
 
-Most items carry an **Open Configure** button; items about the tip board carry
+Most items carry an **Open Configure** button. One about an attraction opens its
+card, unfolded and in view; one about a setting opens Configure at its top, where
+the three safeguards are. Items about the tip board carry
 **Refresh LL list**, which is one of only two things on this screen that go to
 the network. The other is **Check current party** at the bottom, which asks
 Disney whether your saved guests are generally eligible — it cannot create an
@@ -274,8 +276,8 @@ offer and cannot spend an entitlement.
 > Lightning Lane exists. Eligibility, inventory and the offer's real return time
 > are checked again immediately before every action.
 
-> Two rough edges visible in the screenshot: with exactly one blocker the bar
-> reads "1 blocker need attention." (the verb is not pluralised), and the
+> Two rough edges: with exactly one blocker the bar reads "1 blocker need
+> attention." (the verb is not pluralised), and, as the screenshot shows, the
 > **Open Configure** buttons sit inline inside the sentence, so text wraps around
 > them. "Retired Ride" is the harness's fake data, not a real attraction.
 
@@ -283,46 +285,50 @@ offer and cannot spend an entitlement.
 
 ![The day timeline](user-guide/timeline.png)
 
-Today tab → **Timeline**. Your held passes down the left, the windows Autopilot
-may use down the right, both on one 4am-to-4am rail.
+Today tab → **Timeline**. Your plans for the day down the left (Lightning Lanes
+in blue, dining and other reservations in grey) and the windows Autopilot may
+use down the right, both on one 4am-to-4am rail. A target with no window at all
+is named above the rail under **Any time** rather than drawn: it permits
+everything, and a bar the height of the rail only took room.
 
-The pale band behind each held pass is the **protected time** around it: 40
-minutes before the return time, and after it 60 minutes when the pass has no
-known end or 40 when it does. A window drawn over that band is a window
-Autopilot will mostly refuse.
+The pale band behind each plan is the **protected time** around it: 40 minutes
+before it starts, and after it 60 minutes when the plan has no known end or 40
+when it does. A window drawn over that band is a window Autopilot will mostly
+refuse. A Multiple Experiences Pass gets no band, since it protects nothing.
 
 Colours on the Targets column:
 
-- **Green** — both bounds set, clear of every held Multi Pass
+- **Green** — both bounds set, clear of every plan
 - **Amber** — "crosses a held plan"; part of the window is still usable
 - **Red** — "window fully blocked", or "bounds reversed"
-- **Grey** — "any time"; no window, so it permits everything
+- **Grey** — only one bound set, such as "from 3:00 PM"
 
-Tap a bar to jump to that pass, or to that target's card in Configure.
+Tap a bar, or a name under Any time, to open that plan, or that target's card in
+Configure, unfolded and in view. A short bar answers a tap a little above and
+below itself too.
 
-Three limits worth knowing:
+Two limits worth knowing:
 
-- **Lunch is not on the timeline.** Only Multi Passes are drawn, and only they
-  colour the windows. A dining reservation constrains your bookings without
-  appearing here — which is why Plan Check can call a target blocked while the
-  timeline shows it only amber. Treat the timeline as the picture and Plan Check
-  as the verdict.
-- **A half-set window reads as no window.** Set only an earliest time (or only a
-  latest) and the bar is drawn grey across the whole day, uncoloured and
-  unflagged — even though Autopilot does enforce the bound you set.
-- **Names are truncated.** In the screenshot above every Targets label reads as
-  three characters. Tap a bar to find out which attraction it is. This is a
-  known rough edge, recorded in `docs/FUTURE.md` §2.1.
+- **A half-set window is not checked against your plans.** Set only an earliest
+  time (or only a latest) and the bar runs from that bound to the end (or from
+  the start) of the day, grey and unflagged, even though Autopilot does enforce
+  the bound you set.
+- **A short bar keeps one line.** A plan an hour long is a short bar; on a
+  narrow phone with two plans at once, its name is cut to a few letters. Tap it
+  to open it.
 
 ## 8. The pre-trip checklist
 
 ![The pre-trip checklist](user-guide/pretrip-checklist.png)
 
 When the day on screen is **not today**, the Today tab becomes a readiness list
-of up to six items:
+of up to seven items:
 
 - Party saved
 - At least one target selected
+- Attractions this build does not recognise, if Disney lists any. **Open** goes
+  to Configure, which names them; it cannot be ticked, since only an update to
+  the app recognises a ride
 - An action actually armed
 - Return windows confirmed, once there is a target
 - Notifications allowed — or, where there are none, the alert sound tested
@@ -385,6 +391,10 @@ This is the line that tells you whether to believe the rest of the screen. If it
 is climbing, tap the refresh button in the header. If there is **no line at
 all**, neither list has ever loaded — that is not the same as fresh.
 
+A refresh leaves the screen as it is, readable and tappable, with a thin bar
+pulsing along the top edge until it is done. Only a first load, or a new park or
+day, covers the screen with a spinner, since there is nothing to read yet.
+
 **Held (N)** is what you are actually holding, at every park on that date.
 **Plan (N)** is what Autopilot is still after, for the park in the header only.
 The two lists are scoped differently on purpose, which is why you can see
@@ -423,12 +433,14 @@ verify it manually. If you hear two notes, the channel works.
 > screen wake lock exists to prevent exactly this, and it is best-effort.
 > Today says **Screen is being kept awake** while it is held and warns
 > **Screen may sleep** when the browser supports the lock but has not granted
-> one. That row appears only while Autopilot is on, because an idle wake lock is
-> expected when no checks are running.
+> one. That row appears only while Autopilot is running, because an idle wake
+> lock is expected when no checks are running: not while it is off, and not
+> once it has stopped, since a stop gives the lock back on purpose.
 
 ### Put the running phone in your pocket
 
-Once Autopilot is on, tap **Pocket it**. The full-screen guard leaves the
+Once Autopilot is running, tap **Pocket it**. (A stopped run does not offer
+it: nothing is running to guard.) The full-screen guard leaves the
 poller and notifications running while preventing the live glass from reaching
 the controls underneath it. It also blocks page scrolling and pull-to-refresh;
 a reload would turn Autopilot off.
@@ -450,7 +462,8 @@ sleep** means to lift the guard and check the named channel; the status follows
 the browser directly rather than waiting for the next poll. If Autopilot stops
 or the 4am rollover turns it off, the guard changes to a red warning. Lift it
 and deliberately start a new run; an off or stopped guard is not still
-checking.
+checking. A NextLL search has its own **Pocket it**, and its guard shows that
+search instead (section 19).
 
 ### Lock the phone to Safari with Guided Access
 
@@ -750,6 +763,12 @@ stops checking, and waits for you to tap **Done**. **With no time set, it keeps
 going:** it books the first time it can, then keeps moving the pass earlier
 until you tap Done, or until the ten minutes below run out.
 
+**Pocket it works here too.** While the search runs, **Pocket it** under **Stop
+looking** puts up the same guard as Today's, lifted the same way. The guarded
+screen shows this search rather than your day plan: the ride, what it holds,
+the window it is aiming at and the number of checks. It reads **Done** once the
+search has what you asked for, and turns red if it stops for any other reason.
+
 **It stops after ten minutes with nothing booked or moved**, and says to take a
 break: long searches can make Disney pause your account. The ten minutes count
 from the last booking or move. Starting again is allowed. It also stops, and
@@ -1016,16 +1035,14 @@ seen. Your sign-in and settings, dry run included, stay as they are. Reload the
 page afterwards. **Between trips, open AutoLL-4 at least once a week** as well,
 or it may start empty next time.
 
-**Rough edges, as of 1.6.1.** Known, recorded, and not fixed yet:
+**Rough edges, as of 1.8.1.** Known and not fixed yet:
 
-- The day timeline truncates every target name at 360 px, and its bars are
-  14–20 px tall, which is a small tap target.
-- Undoing two target removals in a row loses the first one's window and rank.
-- A Plan Check item that names a setting opens Configure at the top of a long
-  screen rather than at the setting.
+- With exactly one blocker, Plan Check's bar reads "1 blocker need attention."
+- Plan Check's **Open Configure** buttons sit inside the sentence, so its text
+  wraps around them.
 
-These and everything else outstanding are in [docs/FUTURE.md](FUTURE.md), with
-what each would cost to fix.
+Everything else outstanding is in [docs/FUTURE.md](FUTURE.md), with what each
+would cost to fix.
 
 ---
 
@@ -1064,7 +1081,7 @@ further out than tomorrow gets no drop times at all and sits at 45 s.
 | Time Search minimum gain | 5 minutes |
 | Tier 1 hold horizon | 90 minutes |
 | Protected span around a plan | 40 min before; 60 after with no end time, 40 with one; 20 before a show ends |
-| Undo after Stop watching | 8 seconds, most recent removal only |
+| Undo after Stop watching | 8 seconds after the last removal, one Undo for each |
 | Activity log | 20 rows |
 | Drop learning | 2 distinct park days before a time is used |
 | Party cap | 20 guests |
