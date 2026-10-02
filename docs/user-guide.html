@@ -552,7 +552,7 @@
       stops working.
     </p>
     <div class="masthead-meta">
-      <span>Version 1.6.1</span>
+      <span>Version 1.8.0</span>
       <span>Three parts · 23 sections</span>
       <span>Unofficial · not endorsed by Disney</span>
     </div>
@@ -965,7 +965,8 @@
         Inside the card, at the bottom. Removal is inside the card on purpose,
         so a mis-tap on the list cannot lose a window and a rank. An
         <span class="ui">Undo</span> strip appears for <strong>8 seconds</strong>
-        and remembers only the most recent removal.
+        after the last removal, with an Undo for each attraction removed while
+        it shows.
       </p>
 
       <h4>The three safeguards</h4>
@@ -1045,8 +1046,10 @@
         <li>Whole party only is off, or Avoid clashes is off</li>
       </ul>
       <p>
-        Most items carry an <span class="ui">Open Configure</span> button. Items
-        about the tip board carry <span class="ui">Refresh LL list</span>, one of
+        Most items carry an <span class="ui">Open Configure</span> button. One
+        about an attraction opens its card, unfolded and in view; one about a
+        setting opens Configure at its top, where the three safeguards are.
+        Items about the tip board carry <span class="ui">Refresh LL list</span>, one of
         only two things here that go to the network. The other is
         <span class="ui">Check current party</span>, which asks Disney whether
         your saved guests are generally eligible — it cannot create an offer and
@@ -1066,51 +1069,54 @@
     <section id="timeline">
       <h3><span class="num">07</span> See it — the timeline</h3>
       <figure class="float">
-        <img src="user-guide/timeline.png" alt="The day timeline: two blue Held bars on the left column, three Target bars on the right, on a 4am-to-4am rail." loading="lazy">
+        <img src="user-guide/timeline.png" alt="The day timeline: Any time naming two rides with no window, three plans on the left (two Lightning Lanes in blue and a lunch in grey) and one amber target window on the right that crosses a plan, on a 4am-to-4am rail." loading="lazy">
         <figcaption>
-          Held passes left, watch windows right, one 4am-to-4am rail. Target
-          names truncate — tap a bar to see which ride it is.
+          Your plans left, watch windows right, one 4am-to-4am rail. Rides with
+          no window are named above it.
         </figcaption>
       </figure>
       <p>
-        Today tab → <span class="ui">Timeline</span>. Your held passes down the
-        left, the windows Autopilot may use down the right, both on one
-        4am-to-4am rail.
+        Today tab → <span class="ui">Timeline</span>. Your plans for the day
+        down the left (Lightning Lanes in blue, dining and other reservations in
+        grey) and the windows Autopilot may use down the right, both on one
+        4am-to-4am rail. A target with no window at all is named above the rail
+        under <span class="ui">Any time</span> rather than drawn: it permits
+        everything, and a bar the height of the rail only took room.
       </p>
       <p>
-        The pale band behind each held pass is the <strong>protected
-        time</strong> around it: 40 minutes before the return time, and after it
-        60 minutes when the pass has no known end or 40 when it does. A window
-        drawn over that band is a window Autopilot will mostly refuse.
+        The pale band behind each plan is the <strong>protected time</strong>
+        around it: 40 minutes before it starts, and after it 60 minutes when
+        the plan has no known end or 40 when it does. A window drawn over that
+        band is a window Autopilot will mostly refuse. A Multiple Experiences
+        Pass gets no band, since it protects nothing.
       </p>
       <div class="tablewrap">
         <table class="free">
           <tbody>
-            <tr><td>Green</td><td>Both bounds set, clear of every held Multi Pass</td></tr>
+            <tr><td>Green</td><td>Both bounds set, clear of every plan</td></tr>
             <tr><td>Amber</td><td>“crosses a held plan” — part of the window is still usable</td></tr>
             <tr><td>Red</td><td>“window fully blocked”, or “bounds reversed”</td></tr>
-            <tr><td>Grey</td><td>“any time” — no window, so it permits everything</td></tr>
+            <tr><td>Grey</td><td>Only one bound set, such as “from 3:00 PM”</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Three limits worth knowing:</p>
+      <p>
+        Tap a bar, or a name under Any time, to open that plan, or that
+        target's card in Configure, unfolded and in view. A short bar answers a
+        tap a little above and below itself too.
+      </p>
+      <p>Two limits worth knowing:</p>
       <ul>
         <li>
-          <strong>Lunch is not on the timeline.</strong> Only Multi Passes are
-          drawn, and only they colour the windows. A dining reservation
-          constrains your bookings without appearing here — which is why Plan
-          Check can call a target blocked while the timeline shows it only amber.
-          Treat the timeline as the picture and Plan Check as the verdict.
+          <strong>A half-set window is not checked against your plans.</strong>
+          Set only an earliest time (or only a latest) and the bar runs from that
+          bound to the end (or from the start) of the day, grey and unflagged,
+          even though Autopilot does enforce the bound you set.
         </li>
         <li>
-          <strong>A half-set window reads as no window.</strong> Set only an
-          earliest time (or only a latest) and the bar is drawn grey across the
-          whole day, uncoloured and unflagged — even though Autopilot does
-          enforce the bound you set.
-        </li>
-        <li>
-          <strong>Names are truncated</strong> to about three characters. Tap a
-          bar to find out which attraction it is.
+          <strong>A short bar keeps one line.</strong> A plan an hour long is a
+          short bar; on a narrow phone with two plans at once, its name is cut
+          to a few letters. Tap it to open it.
         </li>
       </ul>
     </section>
@@ -1125,8 +1131,11 @@
       </figure>
       <p>
         When the day on screen is <strong>not today</strong>, the Today tab
-        becomes a readiness list of up to six items: party saved, at least one
-        target, an action actually armed, return windows confirmed (once there
+        becomes a readiness list of up to seven items: party saved, at least
+        one target, any attractions this build does not recognise (if Disney
+        lists any; <span class="ui">Open</span> goes to Configure, which names
+        them, and it cannot be ticked, since only an update to the app
+        recognises a ride), an action actually armed, return windows confirmed (once there
         is a target), notifications allowed (or, where there are none, the
         alert sound tested), Plan Check reviewed. Each item still to do has a
         button: <span class="ui">Open</span> goes to the screen that fixes it,
@@ -1199,6 +1208,12 @@
         is not the same as fresh.
       </p>
       <p>
+        A refresh leaves the screen as it is, readable and tappable, with a thin
+        bar pulsing along the top edge until it is done. Only a first load, or a
+        new park or day, covers the screen with a spinner, since there is
+        nothing to read yet.
+      </p>
+      <p>
         <strong>Held (N)</strong> is what you are actually holding, at every park
         on that date. <strong>Plan (N)</strong> is what Autopilot is still after,
         for the park in the header only. The two lists are scoped differently on
@@ -1248,13 +1263,16 @@
           this, and it is best-effort. Today says <strong>Screen is being kept
           awake</strong> while it is held and warns <strong>Screen may
           sleep</strong> when the browser supports the lock but has not granted
-          one. That row appears only while Autopilot is on, because an idle
-          wake lock is expected when no checks are running.
+          one. That row appears only while Autopilot is running, because an
+          idle wake lock is expected when no checks are running: not while it
+          is off, and not once it has stopped, since a stop gives the lock back
+          on purpose.
         </p>
       </div>
       <h4>Put the running phone in your pocket</h4>
       <p>
-        Once Autopilot is on, tap <span class="ui">Pocket it</span>. The
+        Once Autopilot is running, tap <span class="ui">Pocket it</span>. (A
+        stopped run does not offer it: nothing is running to guard.) The
         full-screen guard leaves the poller and notifications running while
         preventing the live glass from reaching the controls underneath it. It
         also blocks page scrolling and pull-to-refresh; a reload would turn
@@ -1283,7 +1301,9 @@
         the browser directly rather than waiting for the next poll. If
         Autopilot stops or the 4am rollover turns it off, the guard changes to a
         red warning. Lift it and deliberately start a new run; an off or stopped
-        guard is not still checking.
+        guard is not still checking. A NextLL search has its own
+        <span class="ui">Pocket it</span>, and its guard shows that search
+        instead (<a href="#nextll">section 19</a>).
       </p>
       <h4>Lock the phone to Safari with Guided Access</h4>
       <p>
@@ -1778,6 +1798,16 @@
         pass earlier until you tap Done, or until the ten minutes below run out.
       </p>
       <p>
+        <strong>Pocket it works here too.</strong> While the search runs,
+        <span class="ui">Pocket it</span> under
+        <span class="ui">Stop looking</span> puts up the same guard as
+        Today's, lifted the same way. The guarded screen shows this search rather
+        than your day plan: the ride, what it holds, the window it is aiming at
+        and the number of checks. It reads <span class="ui">Done</span> once the
+        search has what you asked for, and turns red if it stops for any other
+        reason.
+      </p>
+      <p>
         <strong>It stops after ten minutes with nothing booked or moved</strong>,
         and says to take a break: long searches can make Disney pause your
         account. The ten minutes count from the last booking or move. Starting
@@ -2186,13 +2216,11 @@
         well, or it may start empty next time.
       </p>
       <p>
-        <strong>Rough edges, as of 1.6.1.</strong> Known, recorded, and not
-        fixed yet:
+        <strong>Rough edges, as of 1.8.1.</strong> Known and not fixed yet:
       </p>
       <ul>
-        <li>The day timeline truncates every target name at 360&nbsp;px, and its bars are 14–20&nbsp;px tall, which is a small tap target.</li>
-        <li>Undoing two target removals in a row loses the first one's window and rank.</li>
-        <li>A Plan Check item that names a setting opens Configure at the top of a long screen rather than at the setting.</li>
+        <li>With exactly one blocker, Plan Check's bar reads “1 blocker need attention.”</li>
+        <li>Plan Check's <span class="ui">Open Configure</span> buttons sit inside the sentence, so its text wraps around them.</li>
       </ul>
     </section>
 
@@ -2243,7 +2271,7 @@
         <div><dt>Auto-move gain</dt><dd>30 min<small>1 min for a NextLL target with a bound</small></dd></div>
         <div><dt>Time Search gain</dt><dd>5 min<small>in either direction</small></dd></div>
         <div><dt>Tier 1 hold horizon</dt><dd>90 min<small>then the hold releases itself</small></dd></div>
-        <div><dt>Undo window</dt><dd>8 s<small>most recent removal only</small></dd></div>
+        <div><dt>Undo window</dt><dd>8 s<small>after the last removal, one Undo for each</small></dd></div>
         <div><dt>Activity log</dt><dd>20<small>rows, then the oldest fall off</small></dd></div>
         <div><dt>Drop learning</dt><dd>2 days<small>distinct park days before a time is used</small></dd></div>
         <div><dt>Party cap</dt><dd>20<small>guests per Lightning Lane</small></dd></div>

@@ -84,6 +84,10 @@ From `UX-PLAN.md` §9 and the gaps its phase notes record.
 
 ### 2.1 The timeline truncates every target name
 
+**Done in 1.8.0** (ROADMAP item 32): windowless targets are named under Any
+time instead of drawn, each side's width follows its columns, and tall bars
+wrap. A short bar still keeps one truncated line. The finding as made:
+
 At 360 px the Targets column is split again for every simultaneous bar, so
 three full-day targets get about 50 px each and every name is cut. What shipped
 instead of a fix was a `title` tooltip, which a touchscreen never shows. A
@@ -96,6 +100,9 @@ depend on — settle it in the harness at 360 px first.
 
 ### 2.2 Timeline bars are 14–20 px tall and are the tap target
 
+**Done in 1.8.0** (ROADMAP item 32): a 44 px invisible hit area on short bars.
+The finding as made:
+
 A bar's height is its time extent floored at 3 percent of the rail. Tapping one
 is now how you reach a card or a booking. Phase 2 proposed an enlarged
 invisible hit area so the drawn geometry stays honest; it was never added.
@@ -104,6 +111,9 @@ _Where:_ `src/components/ll/DayTimeline.tsx:18,24,46`. _Size:_ small. _Risk:_
 adjacent bars' hit areas overlapping.
 
 ### 2.3 A second removal inside the undo window destroys the first undo
+
+**Done in 1.8.1** (ROADMAP item 33): the strip keeps an Undo for every removal
+made while it shows. The finding as made:
 
 The undo holds one removal in a single state slot. Tidying two rows in a row —
 the ordinary way to hit it — loses the first target's window, rank and flags
@@ -115,6 +125,15 @@ unpredictably at 360 px.
 
 ### 2.4 A Plan Check settings item opens Configure and abandons you
 
+**Not a defect as written**, found while fixing it in 1.8.1 (ROADMAP item 33).
+Every visit to Configure starts at its top, and the three safeguards are the
+first thing there, so a settings item already lands on them. AutoLL-5's fix,
+a scroll to the safeguards, moves nothing, and was not copied. What the item
+does not do is mark which of the three chips it means; its text names the
+setting in the chip's own words. The same look found the real gap next to it:
+an item about an attraction opened its card wherever it was, often below the
+fold. That card is now brought into view. The finding as made:
+
 `Configure` accepts a focus of `{kind:'target'}` or `{kind:'setting'}` and
 reads only the target case, so following a settings blocker drops you at the
 top of a long screen with no indication of what to change.
@@ -125,10 +144,10 @@ rather than a hash.
 
 ### 2.5 The pre-trip checklist is missing three steps and has no way back into a finished one
 
-**Mostly done in 1.6.0** (ROADMAP item 27). "Windows set where wanted" is a
-step you confirm, and a finished step keeps its button. Still open: a row for
-unrecognised attraction IDs. "Park and date chosen" is not to be built
-(ROADMAP item 5). What follows is the finding as it was made.
+**Done in 1.6.0 and 1.7.2** (ROADMAP items 27 and 31). "Windows set where
+wanted" is a step you confirm, a finished step keeps its button, and
+unrecognised attraction IDs have a row of their own. "Park and date chosen" is
+not to be built (ROADMAP item 5). What follows is the finding as it was made.
 
 It ships five of its eight steps: party, targets, an action armed,
 notifications, Plan Check. "Park and date chosen", "windows set where wanted"
@@ -153,6 +172,8 @@ dependency list must include the held plans, or the timeline freezes after a
 booking.
 
 ### 2.7 The timeline's tooltips are in 24-hour time
+
+**Done in 1.8.0** (ROADMAP item 32). The finding as made:
 
 Every bar's `title` is built by interpolating a `ParkTime`, whose `toString()`
 is zero-padded `HH:MM:SS` — so the string a screen reader takes as the bar's

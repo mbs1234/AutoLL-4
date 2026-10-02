@@ -1129,6 +1129,112 @@ required.
 Kept as records of the defect and the acceptance criteria each one closed.
 Their line citations describe the tree before the fix.
 
+### 33. Undo every removal, and a card opened from elsewhere in view — _completed in 1.8.1_
+
+`FUTURE.md` §2.3 and §2.4: the two rough edges AutoLL-5 fixed alone (usability
+slice 5), re-made here as the owner asked (2026-10-01).
+
+- **Every removal can be undone.** The undo held one removal in a single state
+  slot, so tidying two cards in a row lost the first one's window, rank and
+  flags. The strip now keeps an Undo for each removal made while it shows, and
+  goes 8 seconds after the last.
+- **A card opened from elsewhere is in view.** A Timeline bar or a Plan Check
+  item about an attraction unfolded its card wherever it was, often below the
+  fold. It is now scrolled to the middle of the screen, once a visit, so a card
+  the filter hides and shows again does not move the screen while it is typed
+  in. A card just added from the list is left where it is, as before.
+- **A settings item needed nothing.** §2.4 said a settings item opened Configure
+  at the top of a long screen rather than at the setting. Every visit starts at
+  the top, and the three safeguards are the first thing there, so the item
+  already lands on them; AutoLL-5's scroll to them moves nothing and was not
+  copied.
+
+### 32. A timeline that names what it draws, and draws lunch — _completed in 1.8.0_
+
+`FUTURE.md` §2.1, §2.2 and §2.7, and the dining the owner asked for
+(2026-10-01).
+
+- **Dining and every other timed plan are on it.** `dayTimeline` was given
+  Lightning Lanes alone, so a window across lunch looked clear while the booker
+  refused every time in it. It now takes every plan and keeps the timed ones
+  `clashablePlans` counts, as the booker does: dining and activity
+  reservations, DAS, boarding groups, drawn in grey beside the passes in blue.
+  A Multiple Experiences Pass is still drawn, and gets no protected band, since
+  it protects nothing.
+- **Names you can read.** A target with no window at all drew a bar the height
+  of the rail and took a column, so three targets at 360 px got about 50 px
+  each and every name was cut. Such targets are now named above the rail under
+  **Any time** (tappable, like the bars), and each side's width follows its
+  column count. A tall bar wraps its name and window; a short one keeps one
+  line, truncated, rather than lines cut off by its end.
+- **A bar's band no longer hides another bar.** Each protected band was drawn
+  just after the bar before it, so a later band lay over earlier bars; lunch's
+  band hid a pass held at the same time entirely. Every band is now drawn
+  first.
+- **Taps.** A bar shorter than 44 px gets an invisible hit area of 44 px,
+  centred on it, so the drawn height stays the time it stands for.
+- **12-hour descriptions**, where they read "20:15:00", and one bound in its own
+  words ("from 3:00 PM") where it read "any time".
+
+### 31. Three small honesty fixes on Today — _completed in 1.7.2_
+
+- **No awake warning once stopped.** While Autopilot was stopped, Today's awake
+  line read red "Screen may sleep, which can slow or pause checks", though a
+  stop gives the wake lock back on purpose and nothing is checking. The line
+  now shows only while it runs; **Restart autopilot** takes the lock again,
+  and the line comes back.
+- **No Pocket it on a stopped run.** Its own comment said it was offered "only
+  while the engine is running", since only then is the screen held, but it was
+  offered whenever Autopilot was switched on, stopped included, where the
+  shield could only say "Stopped". NextLL's new **Pocket it** already went once
+  its search stopped; Today's now does too.
+- **A checklist row for attractions this build does not recognise** (item 5's
+  last part, `FUTURE.md` §2.5's last missing step). Today's red line about them
+  said where to look and offered no way there. The pre-trip list now has a row
+  saying how many, with **Open** to Configure, which names them. It cannot be
+  ticked: only an update to the build's data recognises a ride.
+
+### 30. Refreshes that keep the screen — _completed in 1.7.1_
+
+Left for AutoLL-3 by AutoLL-5's usability review, because the spinner is the
+providers', not a screen's. Every visible refresh of the tip board or the plans
+went through `useDataLoader`, which covered the screen with a spinner for at
+least half a second, so the screen being read was hidden, and a tap on it
+blocked, each time.
+
+- **`quiet`**, a new `loadData` option: the screen stays uncovered, with a thin
+  bar pulsing along the top edge (`Refreshing`). An edge rather than a badge,
+  because the header's height differs from screen to screen, and a badge in it
+  covered what sat there.
+- **The two providers ask for it once they have data.** `ExperiencesProvider`
+  is quiet once the current park and day have a tip board, and covers again
+  when a new one starts empty; `PlansProvider` once plans have loaded. Each
+  tracks that in a ref, read when a refresh starts: as state it would re-create
+  the refresh, which an effect runs whenever it changes.
+- **Everything else still covers.** A screen's own action, such as booking,
+  keeps the spinner, which also stops a second tap.
+
+### 29. Pocket mode for a NextLL search — _completed in 1.7.0_
+
+Left for AutoLL-3 by AutoLL-5's usability review, because it needs the shield
+to see a second engine. The pocket screen sits above every tab and read only
+the day plan's Autopilot, so a NextLL search had no **Pocket it** of its own,
+and pocketing from Today could only ever describe the day plan.
+
+- **Pocket it on NextLL's running screen**, under **Stop looking**, while the
+  search runs. It raises the same guard as Today's, lifted the same way.
+- **The guard shows the search.** NextLL's provider is nested below the shield,
+  out of its sight, so the search reports itself through the shield's context
+  (`showInPocket`, a small store in `pocketSearch.ts`) in its own screen's
+  words: the ride, what it holds, the window it is aiming at, the number of
+  checks. A store rather than state, so each check re-renders only the shield.
+- **Done is not an alarm.** A search that stopped because it has what was asked
+  for reads **Done**; any other stop turns the guard red, as Autopilot's does.
+- **It reports only while it runs.** Stopping the search, or leaving the tab,
+  clears the report, so Today's guard goes back to the day plan.
+
+Time Search and Change attraction can report the same way; they do not yet.
+
 ### 28. One name for Disney's Tier 1 rule, another for Autopilot's — _completed in 1.6.1_
 
 "Tier 1 hold" meant two things. The guide's section of that name, the Activity
