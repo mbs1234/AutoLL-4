@@ -2,6 +2,7 @@ import { use, useState } from 'react';
 
 import { DasBooking, LightningLane } from '@/api/itinerary';
 import { outcomeIsUnknown } from '@/autopilot/autobook';
+import { cancellationMutation } from '@/autopilot/manualMutation';
 import FloatingButton from '@/components/FloatingButton';
 import GuestList from '@/components/GuestList';
 import LandLine from '@/components/LandLine';
@@ -10,7 +11,10 @@ import ClientsContext from '@/contexts/ClientsContext';
 import NavContext from '@/contexts/NavContext';
 import PlansContext from '@/contexts/PlansContext';
 import useDataLoader from '@/hooks/useDataLoader';
+import useManualMutation from '@/hooks/useManualMutation';
+import { useUnanswered } from '@/hooks/useMutationDoubts';
 
+import MutationProtection from '../MutationProtection';
 import ReturnTime from '../ReturnTime';
 import UnansweredNotice from '../UnansweredNotice';
 
@@ -31,7 +35,10 @@ export default function CancelGuests<B extends LightningLane | DasBooking>({
     Set<LightningLane['guests'][0]>
   >(new Set());
   const { loadData, loaderElem } = useDataLoader();
-  const [unanswered, setUnanswered] = useState(false);
+  const [unanswered, setUnanswered] = useUnanswered(
+    cancellationMutation(booking)
+  );
+  const mutate = useManualMutation();
 
   const { name, park, guests } = booking;
   const cancelingNone = guestsToCancel.size === 0;
@@ -42,7 +49,10 @@ export default function CancelGuests<B extends LightningLane | DasBooking>({
     let cancelled = false;
     await loadData(async () => {
       try {
-        await client.cancelBooking([...guestsToCancel]);
+        await mutate(
+          cancellationMutation(booking, [...guestsToCancel]),
+          control => client.cancelBooking([...guestsToCancel], control)
+        );
         cancelled = true;
       } catch (error) {
         if (outcomeIsUnknown(error)) setUnanswered(true);
@@ -119,6 +129,7 @@ export default function CancelGuests<B extends LightningLane | DasBooking>({
         </div>
       )}
       {unanswered && <UnansweredNotice action="cancel" />}
+      <MutationProtection mutation={cancellationMutation(booking)} />
       <FloatingButton
         disabled={cancelingNone || unanswered}
         onClick={cancelBooking}

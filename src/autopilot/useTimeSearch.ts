@@ -6,12 +6,17 @@ import { Booking } from '@/api/itinerary';
 import { LLMP, Offer, OfferError } from '@/api/ll';
 import { APP_NAME } from '@/appIdentity';
 import { ParkTime } from '@/datetime';
+import { savedPartyScope } from '@/savedParty';
 import { sleep } from '@/sleep';
 
 import { actionWasRejected } from './autobook';
 import { offerBaseline } from './automodify';
 import { mutationId } from './lease';
-import { MAX_MUTATION_MS, MutationOperation } from './mutation';
+import {
+  MAX_MUTATION_MS,
+  MutationOperation,
+  mutationControl,
+} from './mutation';
 import type { MutationEvidence } from './mutation';
 import {
   noteRefusal,
@@ -479,7 +484,24 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
     // ref inside a cleanup is the pattern that hides a stale-node bug and the
     // lint is right to ask.
     const guardForCleanup = guardRef.current;
-    const stopped = () => cancelled || !runningRef.current;
+    const partyScope = savedPartyScope();
+    const stopped = () => {
+      if (cancelled || !runningRef.current) return true;
+      if (savedPartyScope() === partyScope) return false;
+      // The party changed under the search, so its offers are for the wrong
+      // people. It used to stop without saying so: still showing as running,
+      // Start doing nothing, and its lease and wake lock kept, so Autopilot
+      // went on skipping this reservation until someone tapped Stop.
+      if (mountedRef.current) {
+        setState(s => ({
+          ...s,
+          lastError:
+            'The party changed, so this search stopped. Start it again for the new party.',
+        }));
+      }
+      stop('failed');
+      return true;
+    };
 
     /** Commit one quoted offer through the shared mutation lifecycle. */
     async function commitQuoted(quoted: Offer<LLMP>): Promise<void> {
@@ -667,11 +689,10 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
         return;
       }
 
-      const control: RequestControl = {
-        signal: operation.signal,
-        start: async send => {
-          const authorize = () =>
-            !operation.abandoned && !stopped() && runningRef.current;
+      const control = mutationControl(operation, {
+        evidence,
+        authorize: () => !stopped() && runningRef.current,
+        start: async (authorize, send) => {
           if (depsRef.current.startCommit) {
             return depsRef.current.startCommit(authorize, send);
           }
@@ -681,12 +702,9 @@ export default function useTimeSearch(deps: TimeSearchDeps) {
           return send();
         },
         onDispatch: () => {
-          if (!operation.markDispatched(evidence)) {
-            throw new RequestNotSent('Search stopped before send');
-          }
           commitInFlightRef.current = true;
         },
-      };
+      });
 
       let moved: LLMP;
       try {
