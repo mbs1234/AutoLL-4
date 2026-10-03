@@ -34,7 +34,26 @@ function description(
   if (doubt.kind === 'modify') {
     return `Move ${nameOf(doubt.facilityId)}${from ? ` from ${from}` : ''}${to ? ` to ${to}` : ''} on ${date}`;
   }
+  if (doubt.kind === 'book') {
+    return `Book ${nameOf(doubt.facilityId)}${to ? ` at ${to}` : ''} on ${date}`;
+  }
+  if (doubt.kind === 'cancel') {
+    return `Cancel guests at ${nameOf(doubt.facilityId)} on ${date}`;
+  }
   return `Change ${nameOf(doubt.facilityId)} on ${date}`;
+}
+
+/**
+ * Whether plans can settle this by themselves.
+ *
+ * A booking by the guests it was for, the others by the reservation they
+ * changed. Without that evidence only a person can, which is not the same as
+ * the entry being left by an older version: that is only true without a kind.
+ */
+function settlesByItself(doubt: QuarantinedMutation): boolean {
+  if (doubt.kind === 'book') return !!doubt.guestIds?.length;
+  if (doubt.kind) return !!doubt.reservationIds?.length;
+  return false;
 }
 
 /** Visible, operation-specific protection with an explicit manual escape. */
@@ -90,19 +109,22 @@ export default function QuarantinePanel({
         {doubts.length === 1 ? '' : 's'} protected
       </h3>
       <p className="mt-1">
-        Disney did not return a definite answer. {APP_NAME} will not
-        automatically book, move, or swap the affected attractions until Plans
-        can match the exact reservation at the requested result or you confirm
-        what happened.
+        Disney did not return a definite answer. {APP_NAME} will not book, move,
+        swap, or cancel the affected attractions until Plans show what happened
+        or you confirm it. A booking or a cancellation clears by itself once
+        Plans have caught up, usually within a minute; a move or a swap clears
+        when Plans show the exact requested result.
       </p>
       <ul className="mt-2 space-y-2">
         {doubts.map(doubt => (
           <li className="rounded-sm bg-white/60 p-2" key={identity(doubt)}>
             <p>{description(doubt, nameOf)}</p>
-            {!doubt.reservationIds?.length && (
+            {!settlesByItself(doubt) && (
               <p className="mt-1 font-semibold" role="status">
-                This entry was saved by an older {APP_NAME} version and cannot
-                clear automatically. Check Disney Plans, then resolve it here.
+                {doubt.kind
+                  ? 'This entry cannot clear automatically.'
+                  : `This entry was saved by an older ${APP_NAME} version and cannot clear automatically.`}{' '}
+                Check Disney Plans, then resolve it here.
               </p>
             )}
             {!doubt.durable && (
